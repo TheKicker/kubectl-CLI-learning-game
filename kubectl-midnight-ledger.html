@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Midnight Ledger — a kubectl mystery</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#10151c; --panel2:#151c25; --line:#232c38;
+  --fg:#c9d1d9; --dim:#7d8590; --green:#7ee787; --amber:#e3b341;
+  --red:#ff7b72; --cyan:#79c0ff; --violet:#d2a8ff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:14px}
+#app{display:grid;grid-template-rows:auto 1fr;height:100vh;height:100dvh}
+header{display:flex;gap:18px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header .title{color:var(--amber);font-weight:700;letter-spacing:.5px}
+header .meta{color:var(--dim);font-size:12px}
+header .meta b{color:var(--cyan);font-weight:400}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
+#term{display:flex;flex-direction:column;min-height:0;padding:12px 16px 10px;cursor:text}
+#out{flex:1;overflow:auto;line-height:1.45;padding-bottom:6px}
+#out > div{margin:0 0 2px}
+.raw{white-space:pre}
+.echo{white-space:pre-wrap;word-break:break-all;margin-top:8px!important}
+.ps{color:var(--green)}
+.err{white-space:pre-wrap;color:var(--red)}
+.ok{white-space:pre-wrap;color:var(--green)}
+.dim{white-space:pre-wrap;color:var(--dim)}
+.narr{white-space:pre-wrap;color:var(--amber);border-left:2px solid var(--amber);padding:2px 0 2px 10px;margin:8px 0!important}
+.tip{white-space:pre-wrap;color:var(--violet);border-left:2px solid var(--violet);padding:2px 0 2px 10px;margin:6px 0!important}
+.mission{white-space:pre-wrap;color:var(--cyan);border:1px solid #1f3a57;background:#0e1a27;padding:8px 12px;margin:10px 0!important;border-radius:4px}
+.banner{white-space:pre;color:var(--amber)}
+.watch{border-left:2px solid var(--green);padding-left:10px}
+#inrow.watching{border-top-color:var(--green)}
+#inrow.watching .ps{color:var(--dim)}
+.story{white-space:pre-wrap}
+#inrow{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:8px}
+#inrow .ps{white-space:nowrap}
+#cmd{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--fg);font:inherit;caret-color:var(--green);padding:4px 0}
+aside{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:12px}
+.card h3{margin:0 0 8px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);font-weight:600}
+#mTitle{color:var(--cyan);font-weight:700;margin-bottom:6px}
+#mGoal{line-height:1.45}
+.bar{height:4px;background:var(--line);border-radius:2px;margin:10px 0 10px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--green);width:0;transition:width .4s}
+button{font:inherit;font-size:12px;background:transparent;color:var(--amber);border:1px solid #5a4a1f;border-radius:4px;padding:5px 10px;cursor:pointer}
+button:hover{background:#2a2310}
+ul{list-style:none;margin:0;padding:0}
+#clues li{padding:5px 0;border-bottom:1px dashed var(--line);font-size:12.5px;line-height:1.4}
+#clues li:last-child{border-bottom:0}
+#clues li::before{content:"◆ ";color:var(--amber)}
+#clues .empty{color:var(--dim)}
+#clues .empty::before{content:""}
+#manual li{padding:6px 4px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1.35}
+#manual li:hover{background:#1b2430}
+#manual code{color:var(--dim);font-family:inherit}
+#manual .n{color:var(--dim);font-size:11px;display:block;margin-top:2px;padding-left:16px}
+#manual li .ck{display:inline-block;width:16px;color:var(--line)}
+#manual li.got code{color:var(--green)}
+#manual li.got .ck{color:var(--green)}
+#manual li.flash{background:#15301c}
+#codes div{padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px;line-height:1.4}
+#codes div:last-child{border-bottom:0}
+#codes b{display:block;font-weight:600;color:var(--green)}
+#codes b.r{color:var(--red)} #codes b.a{color:var(--amber)}
+#codes span{color:var(--dim)}
+.small{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.4}
+@media (max-width:900px){
+  main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  aside{border-left:0;border-top:1px solid var(--line);max-height:34vh}
+  #term{padding:10px 12px}
+  html,body{font-size:13px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="title">THE MIDNIGHT LEDGER</span>
+    <span class="meta">context: <b>granite-prod</b></span>
+    <span class="meta">namespace: <b id="hNs">default</b></span>
+    <span class="meta">mission: <b id="hM">1/17</b></span>
+    <span class="meta">local time: <b id="hT">--:--</b></span>
+  </header>
+  <main>
+    <section id="term">
+      <div id="out" aria-live="polite"></div>
+      <div id="inrow"><span class="ps">night-shift@granite:~$</span><input id="cmd" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="command"></div>
+    </section>
+    <aside>
+      <div class="card">
+        <h3>Current mission</h3>
+        <div id="mTitle"></div>
+        <div id="mGoal"></div>
+        <div class="bar"><i id="mBar"></i></div>
+        <button id="hintBtn">Get a hint</button>
+      </div>
+      <div class="card">
+        <h3>Case file</h3>
+        <ul id="clues"></ul>
+      </div>
+      <div class="card">
+        <h3>Why did it stop?</h3>
+        <div id="codes">
+          <div><b>Exit 0 · Completed</b><span>Finished its job normally. Nothing to fix.</span></div>
+          <div><b class="r">Exit 1 · Error</b><span>The app quit because of an error. Read logs --previous.</span></div>
+          <div><b class="r">Exit 137 · OOMKilled</b><span>Used more memory than its limit, so the system killed it.</span></div>
+          <div><b class="a">Killing · ScalingReplicaSet events</b><span>Stopped on purpose: scaled down, deleted or restarted. Check get events.</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Field manual</h3>
+        <ul id="manual"></ul>
+        <div class="small">Click a command to put it on the prompt. Tab autocompletes names. ↑/↓ recall history.</div>
+      </div>
+    </aside>
+  </main>
+</div>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const out = $('#out'), inp = $('#cmd');
+const SEC = 1e3, MIN = 60e3, HOUR = 3600e3, DAY = 86400e3;
+/* The game uses the player's real computer clock. Every time in the game
+   (ages, describe, events, logs, answers) is worked out from this one clock. */
+const now = () => Date.now();
+const CTX = 'granite-prod';
+const NODES = [['gt-prod-node-1','10.0.1.21'],['gt-prod-node-2','10.0.1.42'],['gt-prod-node-3','10.0.2.17']];
+const CH_ALPHA = 'bcdfghjklmnpqrstvwxz2456789';
+const rnd = n => { let s=''; for (let i=0;i<n;i++) s += CH_ALPHA[Math.floor(Math.random()*CH_ALPHA.length)]; return s; };
+const hash = str => { let h=2166136261; for (const c of str){ h^=c.charCodeAt(0); h=Math.imul(h,16777619);} return h>>>0; };
+const prng = seed => { let a=seed>>>0; return () => { a=(a+0x6D2B79F5)>>>0; let t=a; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; };
+const hex = (seed,n) => { const r=prng(hash(seed)); let s=''; for(let i=0;i<n;i++) s+='0123456789abcdef'[Math.floor(r()*16)]; return s; };
+
+/* ---------- formatting ---------- */
+function fmtAge(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  if (s < 120) return s+'s';
+  const m = Math.floor(s/60);
+  if (m < 10) return m+'m'+(s%60 ? (s%60)+'s' : '');
+  if (m < 180) return m+'m';
+  const h = Math.floor(m/60);
+  if (h < 8) return h+'h'+(m%60 ? (m%60)+'m' : '');
+  if (h < 48) return h+'h';
+  const d = Math.floor(h/24);
+  if (d < 8) return d+'d'+(h%24 ? (h%24)+'h' : '');
+  return d+'d';
+}
+const p2 = n => String(n).padStart(2,'0');
+function fmtDate(ms){
+  const d = new Date(ms), off = -d.getTimezoneOffset();
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${days[d.getDay()]}, ${p2(d.getDate())} ${mons[d.getMonth()]} ${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())} ${off>=0?'+':'-'}${p2(Math.floor(Math.abs(off)/60))}${p2(Math.abs(off)%60)}`;
+}
+const tzOff = ms => { const o=-new Date(ms).getTimezoneOffset(); return o===0 ? 'Z' : `${o>0?'+':'-'}${p2(Math.floor(Math.abs(o)/60))}:${p2(Math.abs(o)%60)}`; };
+const ts = ms => { const d=new Date(ms); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}${tzOff(ms)}`; };
+const TSRE = /(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(\.\d+)?(Z|[+-]\d\d:\d\d)/;
+const clock = ms => { const d=new Date(ms); return `${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+function fmtShort(ms){ const d=new Date(ms); return `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]} ${p2(d.getDate())} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]} ${clock(ms)}`; }
+function parseDur(str){
+  let n = String(str).toLowerCase().replace(/\band\b/g,'').replace(/hours?|hrs?/g,'h').replace(/minutes?|mins?/g,'m').replace(/seconds?|secs?/g,'s').replace(/days?/g,'d').replace(/[\s,]+/g,'');
+  if (!/^(\d+(\.\d+)?[dhms])+$/.test(n)) return null;
+  let ms=0; for (const m of n.matchAll(/(\d+(?:\.\d+)?)([dhms])/g)) ms += +m[1]*{d:DAY,h:HOUR,m:MIN,s:SEC}[m[2]];
+  return ms;
+}
+function table(rows, indent=''){
+  const w=[]; rows.forEach(r=>r.forEach((c,i)=>{ w[i]=Math.max(w[i]||0,String(c).length); }));
+  return rows.map(r=>indent + r.map((c,i)=> i===r.length-1 ? String(c) : String(c).padEnd(w[i]+3)).join('')).join('\n');
+}
+
+/* ---------- apps ---------- */
+const APPS = {
+  'ledger-api':{c:'ledger',img:'registry.granite.internal/bank/ledger-api:2.14.1',port:'8080/TCP',sa:'ledger-api',env:{LEDGER_MODE:'strict',JOURNAL_PATH:'/var/journal',SWEEP_ACCOUNT:'ACCT-0001'},journal:true,res:['500m','512Mi','1','1Gi'],log:'ledger'},
+  'payments-worker':{c:'worker',img:'registry.granite.internal/bank/payments-worker:3.8.0',sa:'payments',env:{QUEUE:'payments-high'},res:['250m','256Mi','500m','512Mi'],log:'payments'},
+  'web-frontend':{c:'web',img:'registry.granite.internal/bank/web-frontend:4.7.2',port:'3000/TCP',sa:'default',env:{},res:['100m','128Mi','250m','256Mi'],log:'web'},
+  'fraud-detector':{c:'scorer',img:'registry.granite.internal/risk/fraud-detector:1.9.4',port:'9000/TCP',sa:'fraud',env:{MODEL:'gbm-2026-08'},res:['500m','1Gi','1','2Gi'],log:'fraud'},
+  'rounding-helper':{c:'helper',img:'registry.granite.internal/dreyes-sandbox/rounding-helper:0.3',sa:'svc-dreyes-batch',env:{LEDGER_STREAM:'bank-prod/ledger-api',SWEEP_ACCOUNT:'ACCT-9981',SWEEP_INTERVAL:'5s'},res:null,log:'shaver'},
+  'ledger-auditor':{c:'auditor',img:'registry.granite.internal/bank/ledger-auditor:1.4.2',port:'8090/TCP',sa:'ledger-auditor',env:{APPROVED_SWEEPS:'ACCT-0001',DEEP_SCAN:'weekly'},res:['100m','128Mi','250m','256Mi'],log:'auditor'},
+  'nightly-statements':{c:'statements',img:'registry.granite.internal/bank/statements-batch:4.0.2',sa:'batch',env:{RUN_MODE:'nightly'},res:['500m','512Mi','1','1Gi'],log:'statements'},
+  'ledger-db':{c:'postgres',img:'registry.granite.internal/bank/ledger-db:16.4',port:'5432/TCP',sa:'ledger-db',env:{POSTGRES_DB:'ledger',PGDATA:'/var/lib/postgresql/data'},res:['1','4Gi','2','8Gi'],log:'db'},
+  'coredns':{c:'coredns',img:'registry.k8s.io/coredns/coredns:v1.11.3',port:'53/UDP',sa:'coredns',env:{},res:['100m','70Mi','','170Mi'],log:'dns'},
+  'metrics-server':{c:'metrics-server',img:'registry.k8s.io/metrics-server/metrics-server:v0.7.2',port:'10250/TCP',sa:'metrics-server',env:{},res:['100m','200Mi','',''],log:'generic'},
+  'prometheus-server':{c:'prometheus',img:'quay.io/prometheus/prometheus:v3.5.0',port:'9090/TCP',sa:'prometheus',env:{},res:['500m','2Gi','',''],log:'prom'},
+  'grafana':{c:'grafana',img:'docker.io/grafana/grafana:12.1.0',port:'3000/TCP',sa:'grafana',env:{},res:['100m','256Mi','',''],log:'generic'},
+  'alertmanager':{c:'alertmanager',img:'quay.io/prometheus/alertmanager:v0.28.1',port:'9093/TCP',sa:'alertmanager',env:{},res:['50m','64Mi','',''],log:'prom'},
+};
+const SVCS = {
+  'default':[['kubernetes','ClusterIP','10.100.0.1','<none>','443/TCP',212*DAY]],
+  'kube-system':[['kube-dns','ClusterIP','10.100.0.10','<none>','53/UDP,53/TCP',212*DAY],['metrics-server','ClusterIP','10.100.118.4','<none>','443/TCP',212*DAY]],
+  'monitoring':[['prometheus-server','ClusterIP','10.100.61.200','<none>','9090/TCP',90*DAY],['grafana','ClusterIP','10.100.61.201','<none>','80/TCP',90*DAY],['alertmanager','ClusterIP','10.100.61.202','<none>','9093/TCP',90*DAY]],
+  'bank-prod':[['ledger-api','ClusterIP','10.100.42.17','<none>','8080/TCP',140*DAY],['ledger-db','ClusterIP','None','<none>','5432/TCP',140*DAY],['web-frontend','LoadBalancer','10.100.42.30','a3f9e1.elb.granite.internal','443:31443/TCP',140*DAY],['fraud-detector','ClusterIP','10.100.42.55','<none>','9000/TCP',61*DAY]],
+  'bank-staging':[['ledger-api','ClusterIP','10.100.77.17','<none>','8080/TCP',30*DAY],['web-frontend','ClusterIP','10.100.77.30','<none>','3000/TCP',30*DAY]],
+  'tmp-reconcile':[],
+};
+
+/* ---------- state ---------- */
+let S, T0;
+function newState(){
+  T0 = now();
+  const st = {
+    ns:'default', chapter:0, hintIdx:0, hints:0, cmds:0, wrong:0,
+    flags:{}, clues:[], learned:new Set(), events:[], history:[], hpos:0, done:false,
+    namespaces:[['default',212*DAY],['kube-system',212*DAY],['monitoring',90*DAY],['bank-prod',140*DAY],['bank-staging',30*DAY],['tmp-reconcile',3*DAY+4*HOUR]].map(([name,a])=>({name,created:now()-a})),
+    deps:[], pods:[],
+  };
+  const D = (ns,name,replicas,age,extra={}) => st.deps.push(Object.assign({ns,name,replicas,created:now()-age,hash:hex(ns+name,9).replace(/[aeiou01]/g,'7').slice(0,9),old:[],ann:{}},extra));
+  D('kube-system','coredns',2,212*DAY); D('kube-system','metrics-server',1,212*DAY);
+  D('monitoring','prometheus-server',1,90*DAY); D('monitoring','grafana',1,90*DAY); D('monitoring','alertmanager',1,90*DAY);
+  D('bank-prod','ledger-api',1,140*DAY,{ann:{'last-migrated-by':'d.reyes','migration-ticket':'DBA-2291'}});
+  D('bank-prod','payments-worker',3,140*DAY); D('bank-prod','web-frontend',2,140*DAY); D('bank-prod','fraud-detector',1,61*DAY); D('bank-prod','ledger-auditor',0,140*DAY);
+  D('bank-prod','ledger-db',1,140*DAY,{sts:true,hash:'ledger-db-'+hex('ledger-db',10)});
+  D('bank-staging','ledger-api',1,30*DAY,{img:'registry.granite.internal/bank/ledger-api:2.15.0-rc1'});
+  D('bank-staging','payments-worker',1,30*DAY); D('bank-staging','web-frontend',1,30*DAY);
+  D('tmp-reconcile','rounding-helper',1,3*DAY+4*HOUR,{ann:{'requested-by':'m.okafor','note':'temporary reconciliation fix'}});
+  S = st;
+  for (const d of st.deps){
+    for (let i=0;i<d.replicas;i++){
+      let age;
+      if (d.name==='rounding-helper') age = 3*DAY+4*HOUR - 20*SEC;
+      else if (d.ns==='bank-prod' && d.name==='ledger-api') age = 3*DAY+2*HOUR;
+      else age = Math.min(now()-d.created, (4+Math.floor(Math.random()*4))*DAY + Math.floor(Math.random()*20)*HOUR);
+      const p = mkPod(d, now()-age, true);
+      if (d.ns==='bank-prod' && d.name==='ledger-api'){ p.crash=true; p.original=true; }
+    }
+  }
+  st.crashStart = T0 - 134*MIN;
+  st.auditorStop = T0 - 38*MIN;
+  st.shaverStart = st.pods.find(p=>p.dep==='rounding-helper').created + 2500;
+  const pw = st.pods.filter(p=>p.ns==='bank-prod'&&p.dep==='payments-worker')[1];
+  pw.created = Math.min(pw.created, T0 - 6*DAY - 3*HOUR);
+  st.oomEnd = T0 - (3*DAY + 9*HOUR + 20*MIN);
+  pw.oom = {start: st.oomEnd - 41*MIN, end: st.oomEnd}; pw.restarts0 = 2;
+  const jc = T0 - 5*HOUR - 12*MIN, job = 'nightly-statements-29311840';
+  st.pods.push({ns:'bank-prod',dep:'nightly-statements',job,hash:'',name:`${job}-${rnd(5)}`,created:jc,node:NODES[2][0],nodeIp:NODES[2][1],ip:'10.244.3.77',crash:false,original:false,term:null,restarts0:0,completed:{start:jc+2500,end:jc+2500+4*MIN+12*SEC}});
+  const ah = dep('bank-prod','ledger-auditor').hash, apn = `ledger-auditor-${ah}-${rnd(5)}`;
+  st.events.push(
+    {ns:'bank-prod',type:'Normal',reason:'ScalingReplicaSet',obj:'deployment/ledger-auditor',msg:`Scaled down replica set ledger-auditor-${ah} from 1 to 0`,src:'deployment-controller',t:st.auditorStop,keep:true},
+    {ns:'bank-prod',type:'Normal',reason:'SuccessfulDelete',obj:`replicaset/ledger-auditor-${ah}`,msg:`Deleted pod: ${apn}`,src:'replicaset-controller',t:st.auditorStop+300,keep:true},
+    {ns:'bank-prod',type:'Normal',reason:'Killing',obj:`pod/${apn}`,msg:'Stopping container auditor',src:'kubelet',t:st.auditorStop+600,keep:true});
+}
+function mkPod(d, created, silent){
+  const node = NODES[Math.floor(Math.random()*NODES.length)];
+  let pname = `${d.name}-${d.hash}-${rnd(5)}`;
+  if (d.sts){ let i=0; while (S.pods.some(x=>x.ns===d.ns&&x.name===`${d.name}-${i}`)) i++; pname = `${d.name}-${i}`; }
+  const p = {ns:d.ns, dep:d.name, sts:!!d.sts, hash:d.hash, name:pname, created, node:node[0], nodeIp:node[1],
+    ip:`10.244.${1+Math.floor(Math.random()*3)}.${2+Math.floor(Math.random()*250)}`, crash:false, original:false, term:null, restarts0:0};
+  p.crash = d.ns==='bank-prod' && d.name==='ledger-api' && shaverActive();
+  S.pods.push(p);
+  if (!silent){
+    const c = APPS[d.name].c;
+    if (d.sts) ev(d.ns,'Normal','SuccessfulCreate',`statefulset/${d.name}`,`create Pod ${p.name} in StatefulSet ${d.name} successful`,'statefulset-controller');
+    else ev(d.ns,'Normal','SuccessfulCreate',`replicaset/${d.name}-${d.hash}`,`Created pod: ${p.name}`,'replicaset-controller');
+    ev(d.ns,'Normal','Scheduled',`pod/${p.name}`,`Successfully assigned ${d.ns}/${p.name} to ${p.node}`,'default-scheduler', 200);
+    ev(d.ns,'Normal','Pulled',`pod/${p.name}`,`Container image "${d.img||APPS[d.name].img}" already present on machine`,'kubelet', 1200);
+    ev(d.ns,'Normal','Created',`pod/${p.name}`,`Created container: ${c}`,'kubelet', 2000);
+    ev(d.ns,'Normal','Started',`pod/${p.name}`,`Started container ${c}`,'kubelet', 2500);
+  }
+  return p;
+}
+function ev(ns,type,reason,obj,msg,src,delay=0){ S.events.push({ns,type,reason,obj,msg,src,t:now()+delay}); }
+const dep = (ns,name) => S.deps.find(d=>d.ns===ns && d.name===name && !d.sts);
+const stsOf = (ns,name) => S.deps.find(d=>d.ns===ns && d.name===name && d.sts);
+function podLabels(p){
+  if (p.job) return {'job-name':p.job, 'batch.kubernetes.io/job-name':p.job};
+  if (p.sts) return {app:p.dep, 'apps.kubernetes.io/pod-index':p.name.split('-').pop(), 'controller-revision-hash':p.hash, 'statefulset.kubernetes.io/pod-name':p.name};
+  return {app:p.dep, 'pod-template-hash':p.hash};
+}
+/* label selectors: app=x, app!=x, app in (a,b), app notin (a,b), key, !key — comma = AND */
+function parseSelector(sel){
+  const parts=[]; let depth=0, cur='';
+  for (const ch of sel){ if (ch==='(') depth++; if (ch===')') depth--; if (ch===',' && depth===0){ parts.push(cur); cur=''; } else cur+=ch; }
+  parts.push(cur);
+  const reqs=[];
+  for (const raw of parts){ const t=raw.trim(); let m;
+    if ((m=t.match(/^([\w./-]+)\s+(in|notin)\s*\(([^)]*)\)$/))) reqs.push({k:m[1],op:m[2],v:m[3].split(',').map(x=>x.trim()).filter(Boolean)});
+    else if ((m=t.match(/^([\w./-]+)\s*(==|=|!=)\s*([\w.-]*)$/))) reqs.push({k:m[1],op:m[2]==='!='?'!=':'=',v:[m[3]]});
+    else if ((m=t.match(/^!([\w./-]+)$/))) reqs.push({k:m[1],op:'!exists'});
+    else if ((m=t.match(/^([\w./-]+)$/))) reqs.push({k:m[1],op:'exists'});
+    else return {error:`error: unable to parse requirement: ${t||'<empty>'}`};
+  }
+  return {reqs};
+}
+function selMatch(p, reqs){
+  const L=podLabels(p);
+  return reqs.every(r=>{ const has=Object.prototype.hasOwnProperty.call(L,r.k), val=L[r.k];
+    if (r.op==='exists') return has; if (r.op==='!exists') return !has;
+    if (r.op==='='||r.op==='in') return has && r.v.includes(val);
+    return !has || !r.v.includes(val); });
+}
+const shaverActive = () => { const d = S && S.deps.find(x=>x.name==='rounding-helper'); return !!(d && d.replicas>0); };
+function reconcile(){
+  const t = now();
+  S.pods = S.pods.filter(p => !(p.term && t > p.term + 3500));
+  for (const d of S.deps){
+    const live = S.pods.filter(p=>p.ns===d.ns && p.dep===d.name && !p.term);
+    for (let i=live.length;i<d.replicas;i++) mkPod(d, now(), false);
+    if (live.length > d.replicas){
+      live.sort((a,b)=> d.sts ? a.name.localeCompare(b.name,undefined,{numeric:true}) : a.created-b.created);
+      live.slice(d.replicas).forEach(terminate);
+    }
+  }
+}
+function terminate(p){
+  if (p.term) return; p.term = now();
+  ev(p.ns,'Normal','Killing',`pod/${p.name}`,`Stopping container ${APPS[p.dep].c}`,'kubelet');
+}
+setInterval(()=>{ if (S) reconcile(); const t=document.getElementById('hT'); if (t) t.textContent=clock(now()); }, 500);
+
+/* ---------- pod status ---------- */
+function pv(p){
+  const t = now(), age = t - p.created;
+  let v = {kind:'running', status:'Running', ready:'1/1', restarts:p.restarts0||0, startedAt:p.created+2500, lastRestart:null, prevStart:null, prevEnd:null};
+  if (p.completed){
+    v = {kind:'completed', status:'Completed', ready:'0/1', restarts:0, startedAt:p.completed.start, prevEnd:p.completed.end};
+  } else if (p.original){
+    const k = Math.floor((t - T0)/30000);
+    const cur = T0 - 8000 + k*30000;
+    v = {kind:'backoff', status:'CrashLoopBackOff', ready:'0/1', restarts:26+k, startedAt:cur, lastRestart:cur, prevStart:cur-24000, prevEnd:cur-20000};
+  } else if (age < 2500){
+    v = {kind:'creating', status:'ContainerCreating', ready:'0/1', restarts:0};
+  } else if (p.crash){
+    const s = age - 2500;
+    if (s < 3000) v = {kind:'running', status:'Running', ready:'0/1', restarts:0, startedAt:p.created+2500};
+    else if (s < 6000) v = {kind:'error', status:'Error', ready:'0/1', restarts:0, startedAt:p.created+2500, prevEnd:p.created+5500};
+    else {
+      const k = Math.floor((s-6000)/20000), cur = p.created+8500+k*20000;
+      v = {kind:'backoff', status:'CrashLoopBackOff', ready:'0/1', restarts:k+1, startedAt:cur, lastRestart:cur, prevStart:cur-(k?20000:6000), prevEnd:cur-(k?16000:3000)};
+    }
+  } else if (p.oom){ v.lastRestart = p.oom.end; v.startedAt = p.oom.end + 1500; }
+  if (p.term){ v.status='Terminating'; v.ready='0/1'; }
+  return v;
+}
+
+/* ---------- output ---------- */
+function blk(text, cls){ if (CAP){ CAP.push({text,cls}); return document.createElement('div'); } const d=document.createElement('div'); d.className=cls; d.textContent=text; out.appendChild(d); out.scrollTop = out.scrollHeight; return d; }
+const raw = t => blk(t,'raw');
+const err = t => blk(t,'err');
+const narr = t => blk(t,'narr');
+const tip = t => blk(t,'tip');
+const dim = t => blk(t,'dim');
+function echo(cmd){ const d=document.createElement('div'); d.className='echo'; const s=document.createElement('span'); s.className='ps'; s.textContent='night-shift@granite:~$ '; d.appendChild(s); d.appendChild(document.createTextNode(cmd)); out.appendChild(d); }
+
+/* ---------- field manual ---------- */
+const MANUAL = [
+  ['getns','kubectl get namespaces','List namespaces (short: ns)'],
+  ['getpods','kubectl get pods -n <ns>','List pods in one namespace'],
+  ['getpodsA','kubectl get pods -A','Pods in every namespace'],
+  ['wide','kubectl get pods <pod> -n <ns> -o wide','Which node it runs on, plus its IP'],
+  ['watch','watch -n 1 kubectl get pods -n <ns>','Live view, refreshes every second (Ctrl+C)'],
+  ['label','kubectl get pods -n <ns> -l app=<name>','Only pods with that label'],
+  ['describe','kubectl describe pod <pod> -n <ns>','Full details + recent events'],
+  ['grep','kubectl describe pods -n <ns> | grep -i image: | sort -u','Which version every pod runs'],
+  ['logs','kubectl logs <pod> -n <ns>','What the container printed'],
+  ['logsprev','kubectl logs <pod> -n <ns> --previous','Logs from the crashed run'],
+  ['tail','kubectl logs <pod> --tail=20','Only the last N lines'],
+  ['getdeploy','kubectl get deployments -n <ns>','Deployments manage pods'],
+  ['sts','kubectl get sts -n <ns>','StatefulSets: pods named -0, -1…'],
+  ['scale','kubectl scale deployment <name> --replicas=<n> -n <ns>','0 = stop all pods; 1 = bring one back'],
+  ['deletepod','kubectl delete pod <pod> -n <ns>','The Deployment recreates it'],
+  ['rollout','kubectl rollout restart deployment <name> -n <ns>','Replace all pods gracefully'],
+  ['events','kubectl get events -n <ns>','Recent things that happened'],
+  ['eventswide','kubectl get events -n <ns> -o wide','Adds FIRST SEEN + COUNT: when it began'],
+  ['logssince','kubectl logs <pod> --since=1h --timestamps','Only recent lines, with times'],
+  ['setns','kubectl config set-context --current --namespace=<ns>','Change your default namespace'],
+  ['svc','kubectl get svc -n <ns>','Services (stable network names)'],
+  ['top','kubectl top pods -n <ns>','CPU / memory per pod'],
+];
+function learn(k){
+  if (S.learned.has(k)) return;
+  S.learned.add(k);
+  renderManual();
+  const li = document.querySelector(`#manual li[data-k="${k}"]`);
+  if (li){ li.classList.add('flash'); setTimeout(()=>li.classList.remove('flash'), 1200); }
+}
+function renderManual(){
+  const ul = $('#manual'); ul.innerHTML='';
+  for (const [k,cmd,note] of MANUAL){
+    const li=document.createElement('li'); li.dataset.k=k; if (S.learned.has(k)) li.className='got';
+    const ck=document.createElement('span'); ck.className='ck'; ck.textContent = S.learned.has(k)?'✓':'○';
+    const c=document.createElement('code'); c.textContent=cmd;
+    const n=document.createElement('span'); n.className='n'; n.textContent=note;
+    li.append(ck,c,n);
+    li.onclick = () => { stopWatch(); const i = cmd.indexOf('<'); inp.value = (i>0 ? cmd.slice(0,i) : cmd+' '); inp.focus(); };
+    ul.appendChild(li);
+  }
+}
+
+/* ---------- chapters ---------- */
+const CH = [
+ {id:'ns', t:'Clock In', g:'List all the namespaces in the cluster.',
+  h:['Namespaces are like folders that group related resources. kubectl can list them just like it lists pods.','The resource is called "namespaces" (short name: ns).','kubectl get namespaces'],
+  ok:e=>e.verb==='get'&&e.kind==='namespaces',
+  done:()=>{ narr(`Six namespaces. bank-prod and bank-staging you know. kube-system and monitoring belong to the Platform team.\nBut tmp-reconcile, created about 3 days ago? Nobody mentioned that at standup.`); clue('Unfamiliar namespace tmp-reconcile appeared ~3 days ago.'); }},
+ {id:'pods', t:'Walk the Floor', g:'List the pods running in the bank-prod namespace.',
+  h:['kubectl only looks in your current namespace, which starts as "default". You need to point it at bank-prod.','The -n (or --namespace) flag picks the namespace for a single command.','kubectl get pods -n bank-prod'],
+  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&(e.all||e.ns==='bank-prod'),
+  nudge:e=>(e.verb==='get'&&e.kind==='pods'&&!e.all&&e.ns!=='bank-prod')?`You looked in the "${e.ns}" namespace. Production lives in bank-prod: add -n bank-prod.`:null,
+  done:()=>{ narr(`There it is. ledger-api is in CrashLoopBackOff: it starts, dies, and Kubernetes waits a bit longer before each retry. READY 0/1 means no traffic is reaching it, and the RESTARTS count keeps climbing.\n\nDon't worry about nightly-statements showing Completed. That's a scheduled job that did its work and exited normally. Completed is a happy ending, not a failure.
+
+And ledger-db-0 has no random suffix because it's run by a StatefulSet (kubectl get sts -n bank-prod). StatefulSet pods keep the same name and the same disk every time they restart. That's why databases use them.`); tip(`Tip: tired of typing -n? Make bank-prod your default namespace:\n  kubectl config set-context --current --namespace=bank-prod`); clue('ledger-api (bank-prod) is stuck in CrashLoopBackOff.'); }},
+ {id:'describe', t:'Question the Witness', g:'Describe the crashing ledger-api pod to see its full details and events.',
+  h:['describe shows everything about a resource: image, state, exit code, volumes, recent events.','Pod names end with a random suffix. Type the start of the name and press Tab to autocomplete it.','kubectl describe pod -n bank-prod ledger-api-<Tab>'],
+  ok:e=>e.verb==='describe'&&e.kind==='pods'&&e.deploy==='ledger-api'&&e.ns==='bank-prod',
+  nudge:e=>(e.verb==='describe'&&e.deploy==='ledger-api'&&e.ns==='bank-staging')?'That is the staging copy, and it is healthy. The broken one is in bank-prod.':null,
+  done:()=>{ narr(`Key details:\n  • Last State: Terminated, Reason: Error, Exit Code 1. The app quit because of an error. It was not stopped by a person, and it was not killed for using too much memory (that would say OOMKilled). The "Why did it stop?" card in the sidebar lists the common reasons.\n  • The "journal" volume is an emptyDir. It survives container restarts, but is wiped when the pod itself is replaced.\n  • Annotation last-migrated-by: d.reyes. Dana from the DBA team migrated this 3 days ago...`); clue('ledger-api exits with code 1 (error); its journal lives in an emptyDir volume.'); clue('ledger-api annotation: last-migrated-by: d.reyes (3 days ago).'); }},
+ {id:'version', q:true, t:'Version Check', g:'The Platform team always asks first: "What version is it running?" Find the image tag of the ledger-api pod in bank-prod, then answer it, e.g.  answer 1.2.3',
+  h:['The version is the tag at the end of the Image: line in describe pod: everything after the last colon.',
+     'describe prints a lot. Pipe it through grep to keep only the lines you want:\n     kubectl describe pod -n bank-prod ledger-api-<Tab> | grep -i image:',
+     'Or see every version in the namespace at once:\n     kubectl describe pods -n bank-prod | grep -i image: | sort -u\n     ledger-api is on 2.14.1. Type: answer 2.14.1'],
+  ok:e=>e.verb==='answer'&&/2\.14\.1(?![\d.])/.test(e.text),
+  nudge:e=>{ if (e.verb!=='answer') return null;
+    if (/2\.15/.test(e.text)) return "2.15.0-rc1 is the release candidate running in bank-staging. Which version is the ledger-api in bank-prod on?";
+    return 'Not that one. Look at the Image: line of the ledger-api pod in bank-prod; the version is the part after the last colon.'; },
+  done:()=>{ narr(`Right: bank-prod runs ledger-api 2.14.1 (staging is testing 2.15.0-rc1). That's the first line of any handoff.`);
+    if (S.flags.usedPipe) tip(`Nice pipe work. | grep -i image: keeps only the lines that match (-i ignores upper/lower case), and | sort -u sorts them and removes duplicates. You can add | grep to any command that prints a lot.`);
+    else tip(`Shortcut for next time: pipe describe through grep to keep only the lines you want:
+  kubectl describe pods -n bank-prod | grep -i image: | sort -u
+grep -i keeps the matching lines (ignoring upper/lower case), and sort -u removes duplicates.`);
+    clue('bank-prod ledger-api runs version 2.14.1.'); }},
+ {id:'logs', t:'Last Words', g:"Read the logs from ledger-api's previous (crashed) container.",
+  h:['kubectl logs <pod> prints whatever the container wrote to its output.','The container that crashed is the previous instance. There is a flag for that: --previous (or -p).','kubectl logs -n bank-prod ledger-api-<Tab> --previous'],
+  ok:e=>e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.prev,
+  nudge:e=>(e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&!e.prev)?'That is the current attempt, which has barely started. The crash happened in the previous container: add --previous.':null,
+  done:()=>{ narr(`So that's why it crashes. Thousands of rounding remainders were credited to ACCT-9981, an account that is not on the approved list. The ledger caught a writer it didn't expect (rounding-helper, from tmp-reconcile) and now refuses to serve a dirty journal.\n\nSomebody is shaving fractions of a cent off every transaction.`); clue('Fractional cents are being routed to ACCT-9981.'); clue('Unexpected writer on the ledger: rounding-helper (tmp-reconcile).'); }},
+ {id:'timeline', q:true, t:'When Did It Start?', g:'The pager only just went off, but how long has ledger-api really been crashing? Find out, then report it with the answer command, e.g.  answer 45m  (how long ago) or  answer 03:30  (clock time).',
+  h:['An alert going off is not when the problem started. Kubernetes events record when a problem was FIRST seen and how many times it has happened since. (The timestamps in logs --previous only show the LATEST crash.)',
+     'Two places show it: the Events section at the bottom of kubectl describe pod (the Age column says "x… over …"), or kubectl get events -n bank-prod -o wide (FIRST SEEN column, far right).',
+     ()=>`The BackOff warning was first seen ${fmtAge(now()-S.crashStart)} ago, at ${clock(S.crashStart)}. Type: answer ${fmtAge(now()-S.crashStart)}`],
+  ok:e=>{ if (e.verb!=='answer') return false; const r=judgeTime(e.text,S.crashStart); return !!(r&&r.ok); },
+  nudge:e=>{ if (e.verb!=='answer') return null; const r=judgeTime(e.text,S.crashStart);
+    if (!r) return 'Answer with how long ago (e.g. answer 45m, answer 1h30m) or a clock time (e.g. answer 03:30). The header shows the current local time.';
+    return `Not quite: that's about ${fmtAge(r.off*MIN)} away from when it started. Look for when the BackOff warning was FIRST seen (kubectl get events -n bank-prod -o wide).`; },
+  done:()=>{ narr(`Right. ledger-api started crash-looping at ${clock(S.crashStart)}, about ${fmtAge(now()-S.crashStart)} ago, long before the pager went off. That start time is the first thing the Platform team will ask for.\n\nHow to find it:\n  • describe pod → Events → "(x${Math.floor((now()-S.crashStart)/20000)} over ${fmtAge(now()-S.crashStart)})"\n  • get events -o wide → FIRST SEEN and COUNT\nEvents only last about an hour, unless they keep repeating (like this one).`); clue(`ledger-api began crash-looping at ${clock(S.crashStart)}.`); }},
+ {id:'tmp', t:'Follow the Money', g:'List the pods in the tmp-reconcile namespace.',
+  h:['Same command you used for bank-prod, different namespace.','kubectl get pods -n tmp-reconcile'],
+  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&(e.all||e.ns==='tmp-reconcile'),
+  done:()=>narr(`One pod, up for 3 days, zero restarts. Whatever it is, it is working exactly as intended. Let's hear what it has to say.`)},
+ {id:'shaverlogs', t:'Interrogation', g:'Read the logs of the rounding-helper pod.',
+  h:['Same logs command as before, just a different pod and namespace.','Tab completion works here too.','kubectl logs rounding-helper-<Tab> -n tmp-reconcile'],
+  ok:e=>e.verb==='logs'&&e.deploy==='rounding-helper',
+  done:()=>{ narr(`Still sweeping, every few seconds, and the total keeps growing. Read the auth line and the sweep target carefully.\n\nAnd check the timestamp on the very first line: ${fmtShort(S.shaverStart)}. The skimming started 3 days ago. Tonight's crash is only when the ledger finally noticed.\n(Tip: --since=10m shows only recent lines, and --timestamps adds Kubernetes' own time to every line.)`); clue(`rounding-helper has been running since ${fmtShort(S.shaverStart)}.`); clue('rounding-helper sweeps remainders to ACCT-9981 (holder: D.R. Holdings LLC).'); clue('rounding-helper authenticates as svc-dreyes-batch.'); }},
+ {id:'paper', t:'Paper Trail', g:'Describe the rounding-helper pod (or its deployment) to see who deployed it and from where.',
+  h:['describe works on pods and on deployments.','Look at Annotations, Service Account and Image.','kubectl describe pod rounding-helper-<Tab> -n tmp-reconcile'],
+  ok:e=>e.verb==='describe'&&e.deploy==='rounding-helper',
+  done:()=>{ narr(`The annotation says requested-by: m.okafor, the new contractor. But the image comes from the dreyes-sandbox registry project, and the pod runs as svc-dreyes-batch. Remember: annotations are free text. Anyone with deploy access can type anything there.\n\nFirst things first, though: stop the bleeding.`); clue('Annotation on rounding-helper: requested-by: m.okafor.'); clue('Image pulled from registry.granite.internal/dreyes-sandbox/…'); }},
+ {id:'stop', t:'Stop the Bleeding', g:'Scale the rounding-helper deployment down to 0 replicas.',
+  h:['A Deployment keeps a set number of pods alive. Delete the pod and it simply makes a new one (try it if you like!).','Check the deployment name with: kubectl get deployments -n tmp-reconcile. Then use kubectl scale ... --replicas=<n>.','kubectl scale deployment rounding-helper --replicas=0 -n tmp-reconcile'],
+  ok:e=>e.verb==='scale'&&e.deploy==='rounding-helper'&&e.replicas===0,
+  done:()=>{ narr(`The pod is Terminating. Run kubectl get pods -n tmp-reconcile to watch it disappear.\n\nWhy scale instead of deleting? Scaling to 0 is reversible, and it leaves the Deployment (image, service account, annotations) in place as evidence for the Platform team.`); clue('Contained: rounding-helper scaled to 0 (deployment kept as evidence).'); }},
+ {id:'revive', t:'Revive the Ledger', g:'Restart ledger-api the way the Platform team usually asks: scale it to 0, check the old pod is gone, then scale it back to 1.',
+  h:["The bad writer is gone, but the crashing pod's emptyDir journal is still dirty. Container restarts keep the emptyDir; only a brand-new pod gets a clean one.",'Scale to 0, then watch the old pod disappear live: watch -n 1 kubectl get pods -n bank-prod (Ctrl+C or Enter stops it). Then scale back to 1.','kubectl scale deployment ledger-api --replicas=0 -n bank-prod\n     kubectl get pods -n bank-prod        (wait until ledger-api is gone)\n     kubectl scale deployment ledger-api --replicas=1 -n bank-prod'],
+  ok:e=>e.verb==='scale'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.replicas>=1&&e.wasZero,
+  nudge:e=>{
+    if (e.verb==='scale'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.replicas===0) return 'Good. The old pod is shutting down. Confirm it is gone with kubectl get pods -n bank-prod, then scale back to 1.';
+    if ((e.verb==='rollout'||e.verb==='delete')&&e.deploy==='ledger-api'&&e.ns==='bank-prod') return 'That works too: you got a fresh pod! But practice the move the Platform team usually asks for: scale to 0, then back to 1.';
+    return null; },
+  done:()=>{ narr(`A brand-new ledger-api pod is on its way. Give it a few seconds, then look at it with kubectl get pods -n bank-prod.
+(Or watch it arrive: watch -n 1 kubectl get pods -n bank-prod. Ctrl+C or Enter stops it.)`); S.flags.revivedAt = now(); }},
+ {id:'allclear', t:'All Clear?', g:'Confirm the new ledger-api pod is healthy: check it shows Running 1/1, then read its logs.',
+  h:['First make sure it shows Running and READY 1/1 with get pods. A new pod has a new name and a young AGE.','The new pod has a new name. Tab will find it.','kubectl logs -n bank-prod ledger-api-<Tab>'],
+  ok:e=>e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.healthy&&!e.prev,
+  nudge:e=>(e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&!e.healthy)?'That pod is not the healthy one. Run kubectl get pods -n bank-prod and look for the newest ledger-api pod.':null,
+  done:()=>{ narr(`Clean journal, checksums pass, and the sweep account is back to ACCT-0001 (bank reserve). Balances are unfrozen. 🎉\n\nBefore naming anyone, tie up a few loose ends.`); clue('ledger-api recovered on a fresh pod.'); }},
+ {id:'auditor', q:true, t:'The Silent Watchdog', g:"bank-prod has a ledger-auditor that should have flagged ACCT-9981 by now, but it has no pods at all. Did it crash, or did someone stop it on purpose? Investigate, then:  answer crashed  or  answer intentional",
+  h:["It won't show up in get pods, because there is no pod. List the deployments in bank-prod instead.",
+     'READY 0/0 means the deployment was told to run zero pods. A crash would look like 0/1 with a pod stuck in Error or CrashLoopBackOff. Events say what happened and when: kubectl get events -n bank-prod',
+     '"Scaled down replica set … from 1 to 0", then Killing "Stopping container" means someone scaled it down. Type: answer intentional'],
+  ok:e=>e.verb==='answer'&&S.flags.sawAuditor&&judgeWhy(e.text)==='intentional',
+  nudge:e=>{ if (e.verb!=='answer') return null;
+    if (!S.flags.sawAuditor) return 'Check the evidence before you answer: try kubectl get deployments -n bank-prod and kubectl get events -n bank-prod.';
+    const j=judgeWhy(e.text);
+    if (j==='error') return "Look again. A crashed app still has its pod (READY 0/1, status Error or CrashLoopBackOff). ledger-auditor shows 0/0: its deployment was told to run zero pods. What do the events say?";
+    return 'Answer with: answer crashed  or  answer intentional'; },
+  done:()=>{ narr(`Intentional. A crash leaves the deployment still wanting its pod. Here the deployment itself was changed to want 0 pods: "Scaled down … from 1 to 0" at ${clock(S.auditorStop)}, then Killing: "Stopping container auditor". The pod is gone, but its events are still there. Events are only kept for a limited time (about an hour by default), so check them early.\n\nEvents tell you WHAT happened and WHEN, but not WHO. The Platform team can check the API audit log for who ran the command. That's a great line for your handoff.`); clue(`ledger-auditor was scaled 1 → 0 on purpose at ${clock(S.auditorStop)}.`); }},
+ {id:'restore', t:'Wake the Watchdog', g:'Bring the auditor back: scale ledger-auditor to 1, check its pod is Running, then read its logs.',
+  h:['Same scale command as before, this time with --replicas=1.','Give it a few seconds, check kubectl get pods -n bank-prod shows it Running 1/1, then read its logs (Tab completes the name).','kubectl scale deployment ledger-auditor --replicas=1 -n bank-prod\n     kubectl get pods -n bank-prod\n     kubectl logs -n bank-prod ledger-auditor-<Tab>'],
+  ok:e=>e.verb==='logs'&&e.deploy==='ledger-auditor'&&e.healthy,
+  nudge:e=>(e.verb==='scale'&&e.deploy==='ledger-auditor'&&e.replicas>=1)?'Scaled up. Give it a few seconds, confirm it shows Running with kubectl get pods -n bank-prod, then read its logs.':null,
+  done:()=>{ narr(`The moment it came back, the auditor flagged ACCT-9981, the same service account, and a first credit on ${fmtShort(S.shaverStart).slice(4)}. Its weekly deep scan was due at ${clock(S.auditorStop+6*MIN)}, just 6 minutes after someone scaled it to 0.\n\nWhoever stopped it knew exactly what it was about to find.`); clue(`ledger-auditor was stopped 6 minutes before its weekly deep scan.`); }},
+ {id:'oom', q:true, t:'Loose Ends', g:"One payments-worker pod shows 2 restarts. Is that part of tonight's incident? Find why and when it restarted, then:  answer related  or  answer unrelated",
+  h:['Find the payments-worker pod whose RESTARTS is not 0 (kubectl get pods -n bank-prod). The "(… ago)" next to its restart count already hints at when.',
+     'Describe that pod and read Last State: the Reason, the Exit Code and the Finished time. Compare the time with when rounding-helper started.',
+     'OOMKilled / exit 137 = it ran out of memory, and it happened before rounding-helper even existed. Type: answer unrelated'],
+  ok:e=>e.verb==='answer'&&S.flags.sawOOM&&judgeRel(e.text)==='unrelated',
+  nudge:e=>{ if (e.verb!=='answer') return null;
+    if (!S.flags.sawOOM) return 'Check the evidence before you answer: describe the payments-worker pod that has restarts.';
+    if (judgeRel(e.text)==='related') return `Compare the times: its Last State finished ${fmtShort(S.oomEnd)}, and rounding-helper only started ${fmtShort(S.shaverStart)}. And what does the Reason say?`;
+    return 'Answer with: answer related  or  answer unrelated'; },
+  done:()=>{ narr(`Unrelated. Last State says Reason: OOMKilled, Exit Code: 137. The worker needed more memory than its 512Mi limit, so the system killed it. That's an error, not a person. It happened ${fmtShort(S.oomEnd)}, about 5 hours before rounding-helper appeared.\n\nIf you read its logs --previous, they just stop mid-batch. An OOM kill gives the app no chance to write an error message. That's worth a note in the handoff (it may need more memory), but it isn't part of this case.`); clue(`payments-worker restart: OOMKilled (exit 137) at ${fmtShort(S.oomEnd)}. Unrelated.`); }},
+ {id:'accuse', t:'The Accusation', g:'Name the culprit: accuse marcus, accuse dana, or accuse priya.',
+  h:['Review your case file (type: clues). Which evidence can be faked, and which cannot?','Annotations are free text. Registry projects and service accounts are tied to real identities.'],
+  ok:e=>e.verb==='accuse'&&e.who==='dana', done:()=>reveal()},
+ {id:'escalate', t:'Hand It Off', g:'Type escalate to hand the case to the Platform team.',
+  h:['Just type: escalate'], ok:e=>e.verb==='escalate', done:()=>finale()},
+];
+const chIdx = id => CH.findIndex(c=>c.id===id);
+function judgeTime(text, target){
+  const s = String(text).toLowerCase().trim().replace(/\s*ago$/,'').trim();
+  let m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?$/);
+  if (m){
+    let h=+m[1], mi=+m[2]; if (m[3]){ if (h===12) h=0; if (m[3]==='pm') h+=12; }
+    const d=new Date(target), tm=d.getHours()*60+d.getMinutes(), am=h*60+mi;
+    const cd = x => { const q=Math.abs(tm-x)%1440; return Math.min(q,1440-q); };
+    let off = cd(am); if (!m[3]) off = Math.min(off, cd((am+720)%1440));
+    return {ok:off<=20, off};
+  }
+  if (/\d{4}-\d\d-\d\d/.test(s)){ const t=Date.parse(text.trim()); if (!isNaN(t)){ const off=Math.round(Math.abs(t-target)/MIN); return {ok:off<=20, off}; } }
+  const d = /^\d+$/.test(s) ? +s*MIN : parseDur(s);
+  if (d!=null){ const off=Math.round(Math.abs((now()-target)-d)/MIN); return {ok:off<=20, off}; }
+  return null;
+}
+function judgeWhy(t){ t=String(t).toLowerCase();
+  if (/intent|purpose|deliberat|manual|scal|stopped|someone|human|person|by hand|on purpose/.test(t)) return 'intentional';
+  if (/crash|error|fail|oom|memory|bug|broke|died/.test(t)) return 'error'; return null; }
+function judgeRel(t){ t=String(t).toLowerCase();
+  if (/unrelated|not related|not part|separate|coincid|independent|oom|memory|^no\b/.test(t)) return 'unrelated';
+  if (/related|^yes|part of|connected|linked/.test(t)) return 'related'; return null; }
+function clue(t){ if (!S.clues.includes(t)) S.clues.push(t); renderSide(); }
+function missionText(){ const c=CH[S.chapter]; return `▶ MISSION ${S.chapter+1}/${CH.length}: ${c.t}\n  ${c.g}`; }
+function showMission(){ if (!S.done) blk(missionText(),'mission'); }
+function emit(e){
+  if (EMITQ){ EMITQ.push(e); return; }
+  if (S.done) return;
+  const c = CH[S.chapter];
+  if (c.ok(e)){
+    c.done(); S.chapter++; S.hintIdx=0;
+    if (S.chapter < CH.length) showMission(); else S.done = true;
+    renderSide();
+  } else if (c.nudge){
+    const n = c.nudge(e); if (n) tip(n);
+  }
+}
+function renderSide(){
+  $('#hNs').textContent = S.ns;
+  const n = Math.min(S.chapter, CH.length);
+  $('#hM').textContent = S.done ? 'case closed' : `${S.chapter+1}/${CH.length}`;
+  $('#mBar').style.width = (n/CH.length*100)+'%';
+  if (S.done){ $('#mTitle').textContent='Case closed'; $('#mGoal').textContent='Type restart to play again.'; }
+  else { const c=CH[S.chapter]; $('#mTitle').textContent=`${S.chapter+1}. ${c.t}`; $('#mGoal').textContent=c.g; }
+  const ul=$('#clues'); ul.innerHTML='';
+  if (!S.clues.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='No evidence yet.'; ul.appendChild(li); }
+  S.clues.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); });
+}
+function hint(){
+  if (S.done){ dim('The case is closed. Type restart to play again.'); return; }
+  const c = CH[S.chapter], i = Math.min(S.hintIdx, c.h.length-1);
+  S.hints++; S.hintIdx++;
+  const hv = typeof c.h[i]==='function' ? c.h[i]() : c.h[i];
+  tip(`Hint ${i+1}/${c.h.length}: ${hv}`);
+}
+
+/* ---------- story ---------- */
+function briefing(){
+  blk(`  ╔══════════════════════════════════════════════╗
+  ║   GRANITE TRUST BANK · NIGHT OPERATIONS      ║
+  ║   THE MIDNIGHT LEDGER — a kubectl mystery    ║
+  ╚══════════════════════════════════════════════╝`,'banner');
+  blk(`Your pager buzzes.
+
+  ALERT  ledger-api (bank-prod) is DOWN. Customer balances are frozen.
+  ALSO   Thousands of transactions show fractional-cent discrepancies.
+
+You are the night-shift admin. The Platform team is asleep, and they will
+want a clean handoff: what broke, when it started, why, and who did it.
+
+Persons of interest on tonight's roster:
+  • Marcus Okafor  contractor, started last month, has deploy access via CI
+  • Dana Reyes     senior DBA, ran a ledger migration 3 days ago
+  • Priya Shah     on-call SRE, paged at the same moment you were`,'story');
+  dim(`Type kubectl commands at the prompt below. help = game commands · hint = a nudge · Tab = autocomplete.`);
+  showMission();
+}
+function reveal(){
+  narr(`It was Dana Reyes.
+
+  • The rounding-helper image lives in her sandbox registry project: dreyes-sandbox.
+  • The pod runs as her batch service account: svc-dreyes-batch.
+  • The payouts go to ACCT-9981, held by D.R. Holdings LLC.
+  • She migrated the ledger 3 days ago, the same day tmp-reconcile appeared.
+  • Tonight she scaled ledger-auditor to 0, minutes before its weekly deep scan.
+    (Events can't prove who. The Platform team's API audit log will confirm it.)
+  • The requested-by: m.okafor annotation? Free text she typed to frame the new contractor.
+
+Marcus is cleared. Priya slept through the whole thing, as on-call SREs deserve to.`);
+  clue('Culprit identified: Dana Reyes.');
+}
+function finale(){
+  blk(`TICKET PLAT-4471 → Platform team (severity: high)
+
+  What broke   ledger-api 2.14.1 (bank-prod) crash-looped: dirty journal, exit code 1.
+  Timeline     ${fmtShort(S.oomEnd)}  payments-worker OOMKilled (exit 137). Unrelated; may need more memory
+               ${fmtShort(S.shaverStart)}  rounding-helper starts in tmp-reconcile. Skimming begins
+               ${fmtShort(S.crashStart)}  ledger-api starts crash-looping (exit 1)
+               ${fmtShort(S.auditorStop)}  ledger-auditor scaled 1 → 0 on purpose (who: see API audit log)
+               ${fmtShort(T0)}  night shift paged
+               ${fmtShort(S.flags.containedAt||T0)}  rounding-helper scaled to 0
+               ${fmtShort(S.flags.revivedAt||now())}  ledger-api restarted (scale 0 → 1); ledger-auditor restored
+  Why          rounding-helper (tmp-reconcile) wrote rounding remainders to ACCT-9981.
+  Who          Evidence points to Dana Reyes: dreyes-sandbox image, svc-dreyes-batch
+               service account, D.R. Holdings payout account. Annotation naming
+               m.okafor appears forged.
+  Actions      • Scaled tmp-reconcile/rounding-helper to 0 (deployment kept as evidence)
+               • Replaced ledger-api pod via scale 0 → 1; journal clean, checksums OK
+  Please       Revoke svc-dreyes-batch, audit ACCT-9981, check the API audit log for
+               the ledger-auditor scale-down, remove tmp-reconcile when done.`,'mission');
+  narr(`CASE CLOSED. Nice work, detective.
+
+Commands run: ${S.cmds} · Hints used: ${S.hints} · Wrong accusations: ${S.wrong}
+Field manual: ${S.learned.size}/${MANUAL.length} commands used.`);
+  blk(`Your cheat sheet:
+  kubectl get ns                                     list namespaces
+  kubectl get pods -n <ns>          (-A for all)     list pods
+  kubectl describe pod <pod> -n <ns>                 details, exit codes, events
+  kubectl describe pods -n <ns> | grep -i image: | sort -u     versions running
+  watch -n 1 kubectl get pods -n <ns>                live view (Ctrl+C to stop)
+  kubectl get pods <pod> -n <ns> -o wide             which node it's on
+  kubectl get sts -n <ns>                            StatefulSets (pods named -0, -1…)
+  kubectl logs <pod> -n <ns>        (--previous)     output (of the crashed run)
+  kubectl get deploy -n <ns>                         what manages the pods
+  kubectl scale deploy <name> --replicas=0 -n <ns>   stop everything, keep the config
+  kubectl scale deploy <name> --replicas=1 -n <ns>   bring it back fresh
+  kubectl get events -n <ns>                         recent history
+  kubectl get events -n <ns> -o wide                 FIRST SEEN + COUNT: when it began
+  kubectl logs <pod> --since=1h --timestamps         recent lines, with times
+  Why it stopped:  0 Completed · 1 Error · 137 OOMKilled · Killing/Scaling event = on purpose
+  kubectl config set-context --current --namespace=<ns>`,'raw');
+  dim(`Type restart to play again. (The pod names change every game.)`);
+  S.done = true; renderSide();
+}
+
+/* ---------- parsing ---------- */
+const RT = {statefulset:'statefulsets',statefulsets:'statefulsets',sts:'statefulsets','statefulset.apps':'statefulsets','statefulsets.apps':'statefulsets',pod:'pods',pods:'pods',po:'pods',deployment:'deployments',deployments:'deployments',deploy:'deployments','deployment.apps':'deployments','deployments.apps':'deployments',
+  namespace:'namespaces',namespaces:'namespaces',ns:'namespaces',service:'services',services:'services',svc:'services',event:'events',events:'events',ev:'events',
+  node:'nodes',nodes:'nodes',no:'nodes',job:'jobs',jobs:'jobs',cronjob:'cronjobs',cronjobs:'cronjobs',cj:'cronjobs',replicaset:'replicasets',replicasets:'replicasets',rs:'replicasets',all:'all'};
+const VERBS = ['get','describe','logs','scale','delete','rollout','config','top','version','cluster-info','explain'];
+const GAME = ['watch','help','hint','mission','clues','codes','clear','answer','accuse','escalate','restart','history'];
+const FLAGS = ['-n','--namespace','-A','--all-namespaces','-o','--previous','--replicas=','--tail=','--current','-c'];
+function tokenize(s){ const r=[]; const re=/"([^"]*)"|'([^']*)'|(\S+)/g; let m; while((m=re.exec(s))) r.push(m[1]??m[2]??m[3]); return r; }
+function parseFlags(args){
+  const o={selector:null,timestamps:false,since:null,ns:null,all:false,out:null,prev:false,tail:null,follow:false,replicas:null,container:null,current:false,watch:false,allFlag:false,pos:[],unknown:[],missing:null};
+  const need = (i,f) => { if (args[i+1]===undefined){ o.missing=f; return null; } return args[i+1]; };
+  for (let i=0;i<args.length;i++){
+    const a=args[i];
+    if (a==='-n'||a==='--namespace'){ o.ns=need(i,a); i++; }
+    else if (a.startsWith('--namespace=')) o.ns=a.slice(12);
+    else if (/^-n[a-z0-9]/.test(a)) o.ns=a.slice(2);
+    else if (a==='-A'||a==='--all-namespaces') o.all=true;
+    else if (a==='-l'||a==='--selector'){ o.selector=need(i,a); i++; }
+    else if (a.startsWith('--selector=')) o.selector=a.slice(11);
+    else if (/^-l./.test(a)) o.selector=a.slice(2).replace(/^=/,'');
+    else if (a==='-o'||a==='--output'){ o.out=need(i,a); i++; }
+    else if (a.startsWith('--output=')) o.out=a.slice(9);
+    else if (/^-o[a-z]/.test(a)) o.out=a.slice(2);
+    else if (a==='-p'||a==='--previous') o.prev=true;
+    else if (a==='--tail'){ o.tail=need(i,a); i++; }
+    else if (a.startsWith('--tail=')) o.tail=a.slice(7);
+    else if (a==='-f'||a==='--follow') o.follow=true;
+    else if (a==='-w'||a==='--watch') o.watch=true;
+    else if (a==='--replicas'){ o.replicas=need(i,a); i++; }
+    else if (a.startsWith('--replicas=')) o.replicas=a.slice(11);
+    else if (a==='-c'||a==='--container'){ o.container=need(i,a); i++; }
+    else if (a.startsWith('--container=')) o.container=a.slice(12);
+    else if (a==='--current') o.current=true;
+    else if (a==='--all') o.allFlag=true;
+    else if (a==='--timestamps') o.timestamps=true;
+    else if (a==='--since'){ o.since=need(i,a); i++; }
+    else if (a.startsWith('--since=')) o.since=a.slice(8);
+    else if (a==='--sort-by'){ need(i,a); i++; }
+    else if (a.startsWith('--sort-by=')) {}
+    else if (a==='--minify'||a==='--force'||a==='--grace-period=0') {}
+    else if (a.startsWith('-')) o.unknown.push(a);
+    else o.pos.push(a);
+  }
+  return o;
+}
+function nsCheck(ns){
+  if (!S.namespaces.find(n=>n.name===ns)) tip(`(There is no namespace called "${ns}". List them with kubectl get ns.)`);
+}
+function whereIs(name, kind='pods'){
+  if (kind==='pods'){
+    const exact = S.pods.find(p=>p.name===name);
+    if (exact) return `That pod lives in the ${exact.ns} namespace. Add -n ${exact.ns}.`;
+    const z = S.deps.find(d=>(name===d.name||name.startsWith(d.name+'-')) && d.replicas===0 && !S.pods.some(p=>p.dep===d.name&&p.ns===d.ns));
+    if (z) return `There are no ${z.name} pods right now: its deployment is scaled to 0. See kubectl get deployments -n ${z.ns}.`;
+    const pre = S.pods.find(p=>p.name.startsWith(name+'-') || p.dep===name);
+    if (pre) return `Pod names have a random suffix, like ${pre.name}. Type the start of the name and press Tab, or list them with kubectl get pods -n ${pre.ns}.`;
+  } else if (kind==='deployments'){
+    const d = S.deps.find(d=>d.name===name);
+    if (d && d.sts) return `${name} is a StatefulSet, not a Deployment. Try kubectl get sts -n ${d.ns}.`;
+    if (d) return `There is a ${name} deployment in the ${d.ns} namespace. Add -n ${d.ns}.`;
+    const p = S.pods.find(p=>p.name===name);
+    if (p) return `That is a pod name. The deployment that manages it is called ${p.dep}.`;
+  }
+  return null;
+}
+function splitTypeName(o){
+  let t=o.pos[1], names=o.pos.slice(2);
+  if (t && t.includes('/')){ const [a,b]=t.split('/'); t=a; names=[b,...names]; }
+  return {type: t ? RT[t.toLowerCase()] : undefined, rawType:t, names};
+}
+
+/* ---------- kubectl ---------- */
+function kubectl(args){
+  const o = parseFlags(args);
+  if (o.missing){ err(`error: flag needs an argument: ${o.missing}`); return; }
+  if (o.unknown.length){ err(`error: unknown flag: ${o.unknown[0]}\nSee 'kubectl --help' for usage.`); return; }
+  const verb = o.pos[0];
+  const ns = o.ns || S.ns;
+  if (o.selector!=null){
+    const ps = parseSelector(o.selector); if (ps.error){ err(ps.error); return; }
+    o.sel = ps.reqs;
+    if (verb==='delete'){ tip(`Deleting by label (-l) removes every pod that matches at once, and one typo in the selector can take out the wrong pods. That's on the Platform team's (Tier 3) cheat sheet, not ours. (Blocked in this sim.) To see what a selector matches, run: kubectl get pods -n ${ns} -l '${o.selector}'`); return; }
+    if (verb!=='get' && verb!=='describe'){ tip('Label selectors (-l) work with get and describe in this sim.'); return; }
+  }
+  if (!verb){ kHelp(); return; }
+  switch (verb){
+    case 'get': return cmdGet(o, ns);
+    case 'describe': return cmdDescribe(o, ns);
+    case 'logs': case 'log': return cmdLogs(o, ns);
+    case 'scale': return cmdScale(o, ns);
+    case 'delete': return cmdDelete(o, ns);
+    case 'rollout': return cmdRollout(o, ns);
+    case 'config': return cmdConfig(o);
+    case 'top': return cmdTop(o, ns);
+    case 'version': raw(`Client Version: v1.34.1\nKustomize Version: v5.7.1\nServer Version: v1.33.4`); return;
+    case 'cluster-info': raw(`Kubernetes control plane is running at https://api.granite-prod.internal:6443\nCoreDNS is running at https://api.granite-prod.internal:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy`); return;
+    case 'help': case '--help': case '-h': kHelp(); return;
+    case 'explain': raw(`KIND:     ${(o.pos[1]||'Pod')}\nVERSION:  v1\n\nDESCRIPTION:\n  (explain prints API docs. In real life, try: kubectl explain pod.spec.containers)`); return;
+    case 'edit': tip(`kubectl edit opens a live Deployment's config in a text editor (usually vim), and your changes take effect the moment you save. One typo can take an app down. That's on the Platform team's (Tier 3) cheat sheet, not ours. To just read a Deployment's config: kubectl describe deployment <name> -n <ns>. (Blocked in this sim.)`); return;
+    case 'exec': case 'apply': case 'create': case 'patch': case 'port-forward': case 'cp': case 'drain': case 'cordon': case 'uncordon': case 'label': case 'annotate': case 'set': case 'run': case 'expose': case 'attach': case 'replace': case 'taint': case 'debug':
+      tip(`kubectl ${verb} is a real command, but it's not part of this case. At work, changes like this are usually "escalate to the Platform team" territory.`); return;
+    default: {
+      const sug = VERBS.find(v=>v.startsWith(verb.slice(0,2)));
+      err(`error: unknown command "${verb}" for "kubectl"${sug?`\n\nDid you mean this?\n\t${sug}`:''}`);
+    }
+  }
+}
+function kHelp(){
+  raw(`kubectl controls the Kubernetes cluster manager.
+
+Commands available in this simulation:
+  get          Display one or many resources
+  describe     Show details of a specific resource
+  logs         Print the logs for a container in a pod
+  scale        Set a new size for a deployment
+  delete       Delete a pod (it will be recreated by its deployment)
+  rollout      restart | status | history of a deployment
+  config       set-context | get-contexts | current-context | view
+  top          Display CPU/memory usage of pods or nodes
+  version, cluster-info
+
+Common flags:
+  -n, --namespace <ns>    work in a specific namespace
+  -A, --all-namespaces    look across every namespace
+  -o wide                 extra columns
+  -o wide                 (events) adds FIRST SEEN and COUNT
+  -p, --previous          (logs) the previous, crashed container
+  --tail=<n>              (logs) only the last n lines
+  --since=<1h|10m>        (logs) only lines from the last hour / 10 min
+  --timestamps            (logs) add a timestamp to every line
+  --replicas=<n>          (scale) desired number of pods
+  -l, --selector <label>  (get, describe) only pods with that label, e.g. -l app=ledger-api
+
+Also works:  watch -n 1 <kubectl command>, and pipes: | grep -i, | sort -u, | head, | tail, | wc -l`);
+}
+
+function podRow(p, all, wide){
+  const v = pv(p);
+  const rs = v.restarts ? `${v.restarts}${v.lastRestart?` (${fmtAge(now()-v.lastRestart)} ago)`:''}` : '0';
+  const r = [p.name, v.ready, v.status, rs, fmtAge(now()-p.created)];
+  if (all) r.unshift(p.ns);
+  if (wide) r.push(v.kind==='creating'?'<none>':p.ip, p.node, '<none>', '<none>');
+  return r;
+}
+function depReady(d){ return S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&!p.term&&pv(p).ready==='1/1').length; }
+function depLive(d){ return S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&!p.term).length; }
+function syntheticEvents(ns, all){
+  const list=[];
+  for (const p of S.pods){
+    if (!all && p.ns!==ns) continue;
+    const v = pv(p);
+    if (v.kind==='backoff' && !p.term){
+      const c = APPS[p.dep].c;
+      const first = p.original ? S.crashStart : p.created + 8500;
+      const count = p.original ? Math.floor((now()-first)/20000) : v.restarts;
+      list.push({ns:p.ns,type:'Warning',reason:'BackOff',obj:`pod/${p.name}`,msg:`Back-off restarting failed container ${c} in pod ${p.name}_${p.ns}(${hex(p.name,8)}-${hex(p.name+'x',4)})`,src:'kubelet',t:now()-(4+Math.floor((now()/1000)%9))*SEC,first,count});
+    }
+  }
+  return list;
+}
+function eventsFor(ns, all){
+  const t=now();
+  return S.events.filter(e=>(all||e.ns===ns) && e.t<=t && (e.keep || e.t>t-HOUR)).concat(syntheticEvents(ns,all)).sort((a,b)=>a.t-b.t);
+}
+
+function cmdGet(o, ns){
+  const {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`You must specify the type of resource to get. Use "kubectl api-resources" for a complete list of supported resources.\n\nerror: Required resource not specified.`); return; }
+  if (rawType.includes(',')){ tip('Comma-separated types (pods,svc) work in real kubectl, but this sim takes one type at a time. Try kubectl get all.'); return; }
+  if (!type){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (o.out && !['wide','name'].includes(o.out)){ tip(`-o ${o.out} works in real kubectl (it prints the full object). This sim supports -o wide and -o name.`); return; }
+  if (o.watch) dim(`(-w isn't simulated; showing the current state. For a live view that refreshes itself, try: watch -n 1 kubectl get ${rawType}${o.ns?' -n '+o.ns:''})`);
+  const all = o.all, wide = o.out==='wide', nameOnly = o.out==='name';
+  if (!all && type!=='namespaces' && type!=='nodes' && o.ns) nsCheck(ns);
+  const none = () => raw(all ? 'No resources found' : `No resources found in ${ns} namespace.`);
+  const notFound = (kind, n) => { err(`Error from server (NotFound): ${kind} "${n}" not found`); const w = whereIs(n, kind==='deployments.apps'?'deployments':'pods'); if (w) tip(w); };
+
+  if (type==='pods'){
+    learn(all?'getpodsA':'getpods'); if (wide) learn('wide');
+    let list = S.pods.filter(p=>all||p.ns===ns).sort((a,b)=>(a.ns+a.name).localeCompare(b.ns+b.name));
+    if (names.length && o.sel){ err('error: name cannot be provided when a selector is specified'); return; }
+    if (names.length){
+      for (const n of names) if (!list.find(p=>p.name===n)){ notFound('pods',n); return; }
+      list = list.filter(p=>names.includes(p.name));
+    }
+    if (o.sel){ list = list.filter(p=>selMatch(p,o.sel)); learn('label'); }
+    if (!list.length){ none(); emit({verb:'get',kind:'pods',ns,all}); return; }
+    if (nameOnly){ raw(list.map(p=>'pod/'+p.name).join('\n')); }
+    else {
+      const head = ['NAME','READY','STATUS','RESTARTS','AGE']; if (all) head.unshift('NAMESPACE'); if (wide) head.push('IP','NODE','NOMINATED NODE','READINESS GATES');
+      raw(table([head, ...list.map(p=>podRow(p,all,wide))]));
+    }
+    emit({verb:'get',kind:'pods',ns,all});
+    return;
+  }
+  if (type==='namespaces'){
+    learn('getns');
+    let list = S.namespaces;
+    if (names.length){ for (const n of names) if (!list.find(x=>x.name===n)){ err(`Error from server (NotFound): namespaces "${n}" not found`); return; } list=list.filter(x=>names.includes(x.name)); }
+    raw(nameOnly ? list.map(n=>'namespace/'+n.name).join('\n') : table([['NAME','STATUS','AGE'], ...list.map(n=>[n.name,'Active',fmtAge(now()-n.created)])]));
+    emit({verb:'get',kind:'namespaces'}); return;
+  }
+  if (type==='deployments'){
+    learn('getdeploy');
+    let list = S.deps.filter(d=>(all||d.ns===ns) && !d.sts);
+    if (names.length){ for (const n of names) if (!list.find(d=>d.name===n)){ notFound('deployments.apps',n); return; } list=list.filter(d=>names.includes(d.name)); }
+    if (!list.length){ none(); return; }
+    const head=['NAME','READY','UP-TO-DATE','AVAILABLE','AGE']; if (all) head.unshift('NAMESPACE'); if (wide) head.push('CONTAINERS','IMAGES','SELECTOR');
+    if (all || ns==='bank-prod') S.flags.sawAuditor = true;
+    raw(nameOnly ? list.map(d=>'deployment.apps/'+d.name).join('\n') : table([head, ...list.map(d=>{ const r=[d.name,`${depReady(d)}/${d.replicas}`,d.replicas,depReady(d),fmtAge(now()-d.created)]; if(all) r.unshift(d.ns); if(wide) r.push(APPS[d.name].c,d.img||APPS[d.name].img,`app=${d.name}`); return r; })]));
+    emit({verb:'get',kind:'deployments',ns,all}); return;
+  }
+  if (type==='statefulsets'){
+    learn('sts');
+    let list = S.deps.filter(d=>(all||d.ns===ns) && d.sts);
+    if (names.length){ for (const n of names) if (!list.find(d=>d.name===n)){ err(`Error from server (NotFound): statefulsets.apps "${n}" not found`); return; } list=list.filter(d=>names.includes(d.name)); }
+    if (!list.length){ none(); return; }
+    const head=['NAME','READY','AGE']; if (all) head.unshift('NAMESPACE'); if (wide) head.push('CONTAINERS','IMAGES');
+    raw(nameOnly ? list.map(d=>'statefulset.apps/'+d.name).join('\n') : table([head, ...list.map(d=>{ const r=[d.name,`${depReady(d)}/${d.replicas}`,fmtAge(now()-d.created)]; if(all) r.unshift(d.ns); if(wide) r.push(APPS[d.name].c,APPS[d.name].img); return r; })]));
+    emit({verb:'get',kind:'statefulsets',ns,all}); return;
+  }
+  if (type==='replicasets'){
+    const list = S.deps.filter(d=>(all||d.ns===ns) && !d.sts);
+    if (!list.length){ none(); return; }
+    const rows=[]; for (const d of list){ for (const h of d.old) rows.push([...(all?[d.ns]:[]),`${d.name}-${h}`,0,0,0,fmtAge(now()-d.created)]); rows.push([...(all?[d.ns]:[]),`${d.name}-${d.hash}`,d.replicas,depLive(d),depReady(d),fmtAge(now()-d.created)]); }
+    raw(table([[...(all?['NAMESPACE']:[]),'NAME','DESIRED','CURRENT','READY','AGE'], ...rows])); return;
+  }
+  if (type==='services'){
+    learn('svc');
+    const rows=[]; for (const n of Object.keys(SVCS)) if (all||n===ns) for (const s of SVCS[n]) rows.push([...(all?[n]:[]), s[0],s[1],s[2],s[3],s[4],fmtAge(s[5])]);
+    if (!rows.length){ none(); return; }
+    raw(table([[...(all?['NAMESPACE']:[]),'NAME','TYPE','CLUSTER-IP','EXTERNAL-IP','PORT(S)','AGE'], ...rows])); return;
+  }
+  if (type==='events'){
+    learn('events'); if (wide) learn('eventswide');
+    const list = eventsFor(ns, all);
+    if (!list.length){ none(); return; }
+    if (wide) raw(table([[...(all?['NAMESPACE']:[]),'LAST SEEN','TYPE','REASON','OBJECT','SOURCE','MESSAGE','FIRST SEEN','COUNT'], ...list.map(e=>[...(all?[e.ns]:[]),fmtAge(now()-e.t),e.type,e.reason,e.obj,e.src,e.msg,fmtAge(now()-(e.first||e.t)),e.count||1])]));
+    else raw(table([[...(all?['NAMESPACE']:[]),'LAST SEEN','TYPE','REASON','OBJECT','MESSAGE'], ...list.map(e=>[...(all?[e.ns]:[]),fmtAge(now()-e.t),e.type,e.reason,e.obj,e.msg])]));
+    if (all || ns==='bank-prod') S.flags.sawAuditor = true;
+    emit({verb:'get',kind:'events',ns,all}); return;
+  }
+  if (type==='jobs'||type==='cronjobs'){
+    const jp = S.pods.filter(p=>p.job && (all||p.ns===ns));
+    if (!jp.length){ none(); return; }
+    if (type==='jobs') raw(table([[...(all?['NAMESPACE']:[]),'NAME','STATUS','COMPLETIONS','DURATION','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),p.job,'Complete','1/1','4m12s',fmtAge(now()-p.created)])]));
+    else raw(table([[...(all?['NAMESPACE']:[]),'NAME','SCHEDULE','TIMEZONE','SUSPEND','ACTIVE','LAST SCHEDULE','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),'nightly-statements',`${new Date(p.created).getMinutes()} ${new Date(p.created).getHours()} * * *`,'<none>','False','0',fmtAge(now()-p.created),'140d'])]));
+    return;
+  }
+  if (type==='nodes'){
+    raw(table([['NAME','STATUS','ROLES','AGE','VERSION'], ...NODES.map(n=>[n[0],'Ready','<none>','212d','v1.33.4'])])); return;
+  }
+  if (type==='all'){
+    learn(all?'getpodsA':'getpods');
+    const pods = S.pods.filter(p=>all||p.ns===ns), deps=S.deps.filter(d=>(all||d.ns===ns)&&!d.sts), stss=S.deps.filter(d=>(all||d.ns===ns)&&d.sts);
+    const svcs=[]; for (const n of Object.keys(SVCS)) if (all||n===ns) for (const s of SVCS[n]) svcs.push([n,...s]);
+    if (!pods.length && !deps.length && !svcs.length){ none(); return; }
+    const A = r => all ? r : r.slice(1);
+    const parts=[];
+    if (pods.length) parts.push(table([A(['NAMESPACE','NAME','READY','STATUS','RESTARTS','AGE']), ...pods.map(p=>{ const r=podRow(p,true,false); r[1]='pod/'+r[1]; return A(r); })]));
+    if (svcs.length) parts.push(table([A(['NAMESPACE','NAME','TYPE','CLUSTER-IP','EXTERNAL-IP','PORT(S)','AGE']), ...svcs.map(s=>A([s[0],'service/'+s[1],s[2],s[3],s[4],s[5],fmtAge(s[6])]))]));
+    if (deps.length) parts.push(table([A(['NAMESPACE','NAME','READY','UP-TO-DATE','AVAILABLE','AGE']), ...deps.map(d=>A([d.ns,'deployment.apps/'+d.name,`${depReady(d)}/${d.replicas}`,d.replicas,depReady(d),fmtAge(now()-d.created)]))]));
+    if (stss.length) parts.push(table([A(['NAMESPACE','NAME','READY','AGE']), ...stss.map(d=>A([d.ns,'statefulset.apps/'+d.name,`${depReady(d)}/${d.replicas}`,fmtAge(now()-d.created)]))]));
+    if (deps.length) parts.push(table([A(['NAMESPACE','NAME','DESIRED','CURRENT','READY','AGE']), ...deps.map(d=>A([d.ns,`replicaset.apps/${d.name}-${d.hash}`,d.replicas,depLive(d),depReady(d),fmtAge(now()-d.created)]))]));
+    raw(parts.join('\n\n'));
+    if (all || ns==='bank-prod') S.flags.sawAuditor = true;
+    emit({verb:'get',kind:'all',ns,all}); return;
+  }
+}
+
+/* ---------- describe ---------- */
+function describePod(p){
+  const a=APPS[p.dep], d=dep(p.ns,p.dep), v=pv(p), L=[];
+  const kv=(k,val)=>L.push((k+':').padEnd(18)+val);
+  const ck=(k,val)=>L.push('    '+(k+':').padEnd(16)+val);
+  kv('Name',p.name); kv('Namespace',p.ns); kv('Priority','0'); kv('Service Account',a.sa);
+  kv('Node',`${p.node}/${p.nodeIp}`); kv('Start Time',fmtDate(p.created));
+  if (p.sts){ const lb=podLabels(p), ks=Object.keys(lb); kv('Labels',`${ks[0]}=${lb[ks[0]]}`); ks.slice(1).forEach(k=>L.push(' '.repeat(18)+`${k}=${lb[k]}`)); }
+  else if (p.job){ kv('Labels',`job-name=${p.job}`); L.push(' '.repeat(18)+`batch.kubernetes.io/controller-uid=${hex(p.job,8)}-${hex(p.job+'u',4)}`); }
+  else { kv('Labels',`app=${p.dep}`); L.push(' '.repeat(18)+`pod-template-hash=${p.hash}`); }
+  const ann = Object.entries(d?d.ann:{});
+  if (!ann.length) kv('Annotations','<none>'); else ann.forEach(([k,val],i)=> i? L.push(' '.repeat(18)+`${k}: ${val}`) : kv('Annotations',`${k}: ${val}`));
+  kv('Status', p.term ? 'Terminating (lasts 30s)' : (v.kind==='creating'?'Pending':v.kind==='completed'?'Succeeded':'Running'));
+  if (p.term) kv('Termination Grace Period','30s');
+  kv('IP', v.kind==='creating'?'':p.ip); L.push('IPs:'); if (v.kind!=='creating') L.push(`  IP:           ${p.ip}`);
+  kv('Controlled By', p.job ? `Job/${p.job}` : p.sts ? `StatefulSet/${p.dep}` : `ReplicaSet/${p.dep}-${p.hash}`);
+  L.push('Containers:'); L.push(`  ${a.c}:`);
+  ck('Container ID', v.kind==='creating'?'':'containerd://'+hex(p.name+v.restarts,64));
+  ck('Image', (d&&d.img)||a.img);
+  ck('Port', a.port||'<none>'); ck('Host Port', a.port?'0/'+a.port.split('/')[1]:'<none>');
+  if (v.kind==='creating'){ ck('State','Waiting'); L.push('      Reason:       ContainerCreating'); }
+  else if (v.kind==='running'){ ck('State','Running'); L.push(`      Started:      ${fmtDate(v.startedAt)}`);
+    if (p.oom){ ck('Last State','Terminated'); L.push('      Reason:       OOMKilled'); L.push('      Exit Code:    137'); L.push(`      Started:      ${fmtDate(p.oom.start)}`); L.push(`      Finished:     ${fmtDate(p.oom.end)}`); S.flags.sawOOM=true; } }
+  else if (v.kind==='completed'){ ck('State','Terminated'); L.push('      Reason:       Completed'); L.push('      Exit Code:    0'); L.push(`      Started:      ${fmtDate(v.startedAt)}`); L.push(`      Finished:     ${fmtDate(v.prevEnd)}`); }
+  else if (v.kind==='error'){ ck('State','Terminated'); L.push('      Reason:       Error'); L.push('      Exit Code:    1'); L.push(`      Started:      ${fmtDate(v.startedAt)}`); L.push(`      Finished:     ${fmtDate(v.prevEnd)}`); }
+  else { ck('State','Waiting'); L.push('      Reason:       CrashLoopBackOff'); ck('Last State','Terminated'); L.push('      Reason:       Error'); L.push('      Exit Code:    1'); L.push(`      Started:      ${fmtDate(v.prevStart)}`); L.push(`      Finished:     ${fmtDate(v.prevEnd)}`); }
+  ck('Ready', v.ready==='1/1'?'True':'False'); ck('Restart Count', String(v.restarts));
+  if (a.res){ L.push('    Limits:'); if(a.res[2]) L.push(`      cpu:     ${a.res[2]}`); if(a.res[3]) L.push(`      memory:  ${a.res[3]}`); if(!a.res[2]&&!a.res[3]) L.push('      <none>'); L.push('    Requests:'); L.push(`      cpu:        ${a.res[0]}`); L.push(`      memory:     ${a.res[1]}`); }
+  const env=Object.entries(a.env||{});
+  if (!env.length) ck('Environment','<none>'); else { L.push('    Environment:'); const w=Math.max(...env.map(e=>e[0].length))+3; env.forEach(([k,val])=>L.push(`      ${(k+':').padEnd(w)}${val}`)); }
+  L.push('    Mounts:'); if (a.journal) L.push('      /var/journal from journal (rw)'); if (p.sts) L.push('      /var/lib/postgresql/data from data (rw)'); L.push(`      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-${hex(p.name,5)} (ro)`);
+  L.push('Conditions:'); const rd = v.ready==='1/1'?'True ':'False ';
+  L.push(table([['Type','Status'],['PodReadyToStartContainers', v.kind==='creating'?'False ':'True '],['Initialized','True '],['Ready',rd],['ContainersReady',rd],['PodScheduled','True ']],'  '));
+  L.push('Volumes:');
+  if (a.journal){ L.push('  journal:'); L.push("    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)"); L.push('    Medium:'); L.push('    SizeLimit:  <unset>'); }
+  if (p.sts){ L.push('  data:'); L.push('    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)'); L.push(`    ClaimName:  data-${p.name}`); L.push('    ReadOnly:   false'); }
+  L.push(`  kube-api-access-${hex(p.name,5)}:`); L.push('    Type:                    Projected (a volume that contains injected data from multiple sources)');
+  kv('QoS Class','Burstable'); kv('Node-Selectors','<none>'); kv('Tolerations','node.kubernetes.io/not-ready:NoExecute op=Exists for 300s'); L.push(' '.repeat(18)+'node.kubernetes.io/unreachable:NoExecute op=Exists for 300s');
+  const evs = eventsFor(p.ns,false).filter(e=>e.obj==='pod/'+p.name);
+  if (!evs.length) L.push('Events:            <none>');
+  else { L.push('Events:'); L.push(table([['Type','Reason','Age','From','Message'],['----','------','----','----','-------'], ...evs.map(e=>[e.type,e.reason, e.count?`${fmtAge(now()-e.t)} (x${e.count} over ${fmtAge(now()-e.first)})`:fmtAge(now()-e.t), e.src, e.msg])],'  ')); }
+  return L.join('\n');
+}
+function describeDep(d){
+  const a=APPS[d.name], L=[], kv=(k,val)=>L.push((k+':').padEnd(24)+val);
+  kv('Name',d.name); kv('Namespace',d.ns); kv('CreationTimestamp',fmtDate(d.created)); kv('Labels',`app=${d.name}`);
+  kv('Annotations',`deployment.kubernetes.io/revision: ${1+d.old.length}`); Object.entries(d.ann).forEach(([k,val])=>L.push(' '.repeat(24)+`${k}: ${val}`));
+  kv('Selector',`app=${d.name}`);
+  const live=depLive(d), rdy=depReady(d);
+  kv('Replicas',`${d.replicas} desired | ${d.replicas} updated | ${live} total | ${rdy} available | ${Math.max(0,live-rdy)} unavailable`);
+  kv('StrategyType','RollingUpdate'); kv('MinReadySeconds','0'); kv('RollingUpdateStrategy','25% max unavailable, 25% max surge');
+  L.push('Pod Template:'); L.push(`  Labels:           app=${d.name}`); L.push(`  Service Account:  ${a.sa}`); L.push('  Containers:'); L.push(`   ${a.c}:`);
+  L.push(`    Image:      ${d.img||a.img}`); L.push(`    Port:       ${a.port||'<none>'}`);
+  const env=Object.entries(a.env||{}); if (!env.length) L.push('    Environment:  <none>'); else { L.push('    Environment:'); env.forEach(([k,val])=>L.push(`      ${k}:  ${val}`)); }
+  if (a.journal){ L.push('    Mounts:'); L.push('      /var/journal from journal (rw)'); L.push('  Volumes:'); L.push('   journal:'); L.push("    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)"); }
+  L.push('Conditions:'); L.push(table([['Type','Status','Reason'],['----','------','------'],['Available', rdy>=d.replicas?'True':'False', rdy>=d.replicas?'MinimumReplicasAvailable':'MinimumReplicasUnavailable'],['Progressing','True','NewReplicaSetAvailable']],'  '));
+  kv('OldReplicaSets', d.old.length? d.old.map(h=>`${d.name}-${h} (0/0 replicas created)`).join(', ') : '<none>');
+  kv('NewReplicaSet',`${d.name}-${d.hash} (${live}/${d.replicas} replicas created)`);
+  const evs = eventsFor(d.ns,false).filter(e=>e.obj==='deployment/'+d.name);
+  if (!evs.length) L.push('Events:          <none>');
+  else { L.push('Events:'); L.push(table([['Type','Reason','Age','From','Message'],['----','------','----','----','-------'], ...evs.map(e=>[e.type,e.reason,fmtAge(now()-e.t),e.src,e.msg])],'  ')); }
+  return L.join('\n');
+}
+function describeNs(n){
+  const lbl = {'tmp-reconcile':'purpose=temporary-reconciliation'}[n.name] || '<none>';
+  return `Name:         ${n.name}\nLabels:       kubernetes.io/metadata.name=${n.name}\n${lbl==='<none>'?'':'              '+lbl+'\n'}Annotations:  <none>\nStatus:       Active\n\nNo resource quota.\n\nNo LimitRange resource.`;
+}
+function cmdDescribe(o, ns){
+  const {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`error: You must specify the type of resource to describe. Use "kubectl api-resources" for a complete list of supported resources.`); return; }
+  if (!type){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (o.ns) nsCheck(ns);
+  const all = o.all;
+  if (type==='pods'){
+    learn('describe');
+    let list = S.pods.filter(p=>all||p.ns===ns);
+    if (o.sel){ if (names.length){ err('error: name cannot be provided when a selector is specified'); return; } list = list.filter(p=>selMatch(p,o.sel)); learn('label'); }
+    if (names.length){
+      const m = list.filter(p=>names.some(n=>p.name.startsWith(n)));
+      if (!m.length){ err(`Error from server (NotFound): pods "${names[0]}" not found`); const w=whereIs(names[0]); if (w) tip(w); return; }
+      list = m;
+    }
+    if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    raw(list.map(describePod).join('\n\n\n'));
+    for (const p of list) emit({verb:'describe',kind:'pods',ns:p.ns,deploy:p.dep,pod:p.name});
+    return;
+  }
+  if (type==='deployments'){
+    learn('describe');
+    let list = S.deps.filter(d=>(all||d.ns===ns) && !d.sts);
+    if (names.length){ const m=list.filter(d=>names.some(n=>d.name.startsWith(n))); if (!m.length){ err(`Error from server (NotFound): deployments.apps "${names[0]}" not found`); const w=whereIs(names[0],'deployments'); if (w) tip(w); return; } list=m; }
+    if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    raw(list.map(describeDep).join('\n\n\n'));
+    if (list.some(d=>d.name==='ledger-auditor')) S.flags.sawAuditor = true;
+    for (const d of list) emit({verb:'describe',kind:'deployments',ns:d.ns,deploy:d.name});
+    return;
+  }
+  if (type==='namespaces'){
+    let list = S.namespaces; if (names.length){ list=list.filter(n=>names.some(x=>n.name.startsWith(x))); if(!list.length){ err(`Error from server (NotFound): namespaces "${names[0]}" not found`); return; } }
+    raw(list.map(describeNs).join('\n\n\n')); return;
+  }
+  if (type==='nodes'){
+    const list = NODES.filter(n=>!names.length||names.some(x=>n[0].startsWith(x)));
+    if (!list.length){ err(`Error from server (NotFound): nodes "${names[0]}" not found`); return; }
+    raw(list.map(n=>{ const pods=S.pods.filter(p=>p.node===n[0]&&!p.term); return `Name:               ${n[0]}\nRoles:              <none>\nLabels:             kubernetes.io/hostname=${n[0]}\n                    topology.kubernetes.io/zone=us-east-1${'abc'[NODES.indexOf(n)]}\nConditions:\n${table([['Type','Status','Reason'],['MemoryPressure','False','KubeletHasSufficientMemory'],['DiskPressure','False','KubeletHasNoDiskPressure'],['PIDPressure','False','KubeletHasSufficientPID'],['Ready','True','KubeletReady']],'  ')}\nAddresses:\n  InternalIP:  ${n[1]}\nCapacity:\n  cpu:     8\n  memory:  32Gi\n  pods:    110\nNon-terminated Pods:  (${pods.length} in total)\n${table([['Namespace','Name'],['---------','----'],...pods.map(p=>[p.ns,p.name])],'  ')}`; }).join('\n\n\n')); return;
+  }
+  if (type==='services'){
+    const list=(SVCS[ns]||[]).filter(s=>!names.length||names.some(x=>s[0].startsWith(x)));
+    if (!list.length){ err(names.length?`Error from server (NotFound): services "${names[0]}" not found`:`No resources found in ${ns} namespace.`); return; }
+    raw(list.map(s=>{ const eps=S.pods.filter(p=>p.ns===ns&&p.dep===s[0]&&pv(p).ready==='1/1').map(p=>`${p.ip}:${s[4].split('/')[0].split(':')[0]}`); return `Name:              ${s[0]}\nNamespace:         ${ns}\nSelector:          app=${s[0]}\nType:              ${s[1]}\nIP:                ${s[2]}\nPort:              <unset>  ${s[4]}\nEndpoints:         ${eps.join(',')||'<none>'}\nEvents:            <none>`; }).join('\n\n\n'));
+    if (ns==='bank-prod' && list.some(s=>s[0]==='ledger-api') && shaverActive()) tip('Endpoints: <none> means the service has no ready pods to send traffic to. That matches the outage.');
+    return;
+  }
+  if (type==='statefulsets'){
+    let list = S.deps.filter(d=>(all||d.ns===ns) && d.sts);
+    if (names.length){ const m=list.filter(d=>names.some(n=>d.name.startsWith(n))); if (!m.length){ err(`Error from server (NotFound): statefulsets.apps "${names[0]}" not found`); return; } list=m; }
+    if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    learn('sts');
+    raw(list.map(d=>{ const a=APPS[d.name], live=depLive(d), rdy=depReady(d);
+      return [`Name:               ${d.name}`,`Namespace:          ${d.ns}`,`CreationTimestamp:  ${fmtDate(d.created)}`,`Selector:           app=${d.name}`,`Labels:             app=${d.name}`,`Annotations:        <none>`,
+        `Replicas:           ${d.replicas} desired | ${live} total`,`Update Strategy:    RollingUpdate`,`  Partition:        0`,`Pods Status:        ${rdy} Running / ${live-rdy} Waiting / 0 Succeeded / 0 Failed`,
+        `Pod Template:`,`  Labels:           app=${d.name}`,`  Service Account:  ${a.sa}`,`  Containers:`,`   ${a.c}:`,`    Image:      ${a.img}`,`    Port:       ${a.port}`,`    Mounts:`,`      /var/lib/postgresql/data from data (rw)`,
+        `Volume Claims:`,`  Name:          data`,`  StorageClass:  gp3`,`  Capacity:      200Gi`,`  Access Modes:  [ReadWriteOnce]`,`Events:            <none>`].join('\n'); }).join('\n\n\n'));
+    return;
+  }
+  tip(`describe ${rawType} isn't simulated here. Try pods, deployments, namespaces, nodes or services.`);
+}
+
+/* ---------- logs ---------- */
+function steady(p, gen, n=14){
+  const out=[], period=15000, start=pv(p).startedAt||p.created;
+  const last = Math.floor(now()/period);
+  for (let i=n-1;i>=0;i--){ const slot=last-i; const t=slot*period + (hash(p.name)%period); if (t<start||t>now()) continue; out.push(gen(prng(hash(p.name+slot)), t)); }
+  return out;
+}
+const GEN = {
+  db:(r,t)=>`${ts(t)} [${100+Math.floor(r()*80)}] LOG:  ${r()<0.5?`checkpoint complete: wrote ${10+Math.floor(r()*300)} buffers (0.${Math.floor(r()*9)}%); write=${(r()*3).toFixed(3)} s`:'checkpoint starting: time'}`,
+  payments:(r,t)=>`${ts(t)} INFO  processed batch id=pb-${Math.floor(r()*1e6)} txns=${20+Math.floor(r()*180)} latency=${8+Math.floor(r()*40)}ms`,
+  web:(r,t)=>`${ts(t)} ${['GET /accounts/summary 200','GET /healthz 200','POST /transfers 201','GET /statements 200','GET /login 200'][Math.floor(r()*5)]} ${1+Math.floor(r()*90)}ms`,
+  fraud:(r,t)=>`${ts(t)} INFO  scored txn=88${Math.floor(r()*1e6)} risk=0.0${Math.floor(r()*9)} decision=allow`,
+  dns:(r,t)=>`[INFO] 10.244.${1+Math.floor(r()*3)}.${Math.floor(r()*250)}:${40000+Math.floor(r()*20000)} - ${Math.floor(r()*65535)} "A IN ${['ledger-api.bank-prod','fraud-detector.bank-prod','prometheus-server.monitoring'][Math.floor(r()*3)]}.svc.cluster.local. udp 64 false 512" NOERROR qr,aa,rd 128 0.000${1+Math.floor(r()*9)}s`,
+  prom:(r,t)=>`ts=${ts(t)} level=info component=tsdb msg="Head GC completed" duration=${2+Math.floor(r()*30)}ms`,
+  generic:(r,t)=>`${ts(t)} level=info msg="healthy" uptime_check=ok`,
+};
+function ledgerFatal(st){
+  const L=(o,s)=>`${ts(st+o)} ${s}`;
+  return [L(0,'INFO  ledger-api 2.14.1 starting (mode=strict)'),L(210,'INFO  opening journal /var/journal/ledger.jnl'),L(420,'INFO  journal state: DIRTY, replaying 1,882,410 entries'),
+    L(1900,'WARN  rounding remainder mismatch: txn 88213377 remainder $0.004 credited to ACCT-9981 (not in approved sweep list)'),
+    L(1901,'WARN  rounding remainder mismatch: txn 88213378 remainder $0.007 credited to ACCT-9981 (not in approved sweep list)'),
+    L(1902,'WARN  ... suppressed 14,201 similar warnings'),
+    L(2600,'ERROR checksum mismatch on ledger stream: expected 9f2c11e0, got 41ab7d93'),
+    L(2610,'ERROR unexpected writer on ledger stream: client=rounding-helper.tmp-reconcile (write mode)'),
+    L(2800,'FATAL journal at /var/journal is DIRTY; refusing to serve balances.'),
+    L(2801,'FATAL a clean journal is required. (journal is an emptyDir: it is only reset when the pod is replaced)'),
+    L(2802,'INFO  exiting with code 1')];
+}
+function shaverTotal(t){ return (t-S.shaverStart)/5000*0.99+1000; }
+const money = n => '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function logLines(p, prev){
+  const v=pv(p), a=APPS[p.dep];
+  if (p.completed){ const st=p.completed.start, en=p.completed.end;
+    return [`${ts(st)} INFO  nightly-statements run 29311840 starting`,`${ts(st+900)} INFO  generating statements for 48,113 accounts`,`${ts(st+120000)} INFO  24,000 / 48,113 done`,`${ts(en-4000)} INFO  uploaded 48,113 statement PDFs`,`${ts(en-100)} INFO  all done in 4m12s. exiting with code 0`]; }
+  if (prev && p.oom){ const L=[], r=prng(hash(p.name)); let heap=210;
+    for (let t=p.oom.start;t<p.oom.end-60000;t+=180000){ heap=Math.min(430,heap+Math.floor(r()*25)); L.push(`${ts(t)} INFO  processed batch id=pb-${Math.floor(r()*1e6)} txns=${20+Math.floor(r()*180)} heap=${heap}Mi`); }
+    L.push(`${ts(p.oom.end-52000)} WARN  large batch id=pb-771302 txns=184,220 (month-end settlement)`,`${ts(p.oom.end-30000)} INFO  loading batch into memory... heap=468Mi`,`${ts(p.oom.end-6000)} INFO  loading batch into memory... heap=509Mi (limit 512Mi)`);
+    S.flags.sawOOM=true; return L; }
+  if (p.dep==='ledger-auditor'){ const st=v.startedAt, end=S.flags.containedAt||now();
+    const L=[`${ts(st)} INFO  ledger-auditor 1.4.2 starting`,`${ts(st+300)} INFO  approved sweep accounts: ACCT-0001`,
+      `${ts(st+600)} WARN  weekly deep scan is overdue (was due ${ts(S.auditorStop+6*MIN)}). running it now`,
+      `${ts(st+1400)} ALERT unapproved sweep destination: ACCT-9981 (holder: D.R. Holdings LLC)`,
+      `${ts(st+1401)} ALERT   first credit: ${ts(S.shaverStart)}   last credit: ${ts(end)}   total: ${money(shaverTotal(end))}`,
+      `${ts(st+1402)} ALERT   written by: rounding-helper.tmp-reconcile   principal: svc-dreyes-batch`,
+      `${ts(st+1600)} INFO  alert sent to #fin-security and Platform on-call`];
+    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  GET /healthz 200 1ms`,4)); }
+  if (p.dep==='ledger-api' && p.ns==='bank-prod' && p.crash){
+    if (p.original){
+      if (prev) return ledgerFatal(v.prevStart);
+      return [`${ts(v.startedAt)} INFO  ledger-api 2.14.1 starting (mode=strict)`,`${ts(v.startedAt+210)} INFO  opening journal /var/journal/ledger.jnl`,`${ts(v.startedAt+420)} INFO  journal state: DIRTY, replaying 1,882,410 entries`];
+    }
+    if (prev) return ledgerFatal(v.prevStart);
+    const lines = ledgerFatal(v.startedAt); const shown = Math.min(lines.length, Math.floor((now()-v.startedAt)/300)+1);
+    return lines.slice(0, Math.max(3, shown));
+  }
+  if (p.dep==='ledger-api'){
+    const st=v.startedAt, ver = p.ns==='bank-staging'?'2.15.0-rc1':'2.14.1';
+    const L=[`${ts(st)} INFO  ledger-api ${ver} starting (mode=strict)`,`${ts(st+200)} INFO  opening journal /var/journal/ledger.jnl`,`${ts(st+400)} INFO  journal empty, rebuilding from primary database snapshot`,
+      `${ts(st+1800)} INFO  rebuilt 1,882,410 entries; checksum 9f2c11e0 OK`,`${ts(st+1900)} INFO  sweep account: ACCT-0001 (bank reserve) OK`,`${ts(st+2000)} INFO  listening on :8080`];
+    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  ${r()<0.5?'GET /healthz 200 1ms':`GET /balances/${Math.floor(r()*9e6)} 200 ${3+Math.floor(r()*20)}ms`}`,8));
+  }
+  if (p.dep==='rounding-helper'){
+    const st=v.startedAt, H=[`${ts(st)} INFO  rounding-helper 0.3 starting ("temporary reconciliation fix")`,`${ts(st+300)} INFO  auth ok: principal=svc-dreyes-batch`,
+      `${ts(st+500)} INFO  subscribed to ledger stream bank-prod/ledger-api (write mode)`,`${ts(st+600)} INFO  sweep target: ACCT-9981 (holder: D.R. Holdings LLC)`,`${ts(st+900)} INFO  log rotated; older entries archived`];
+    if (now()-st < HOUR) H.pop();
+    const last=Math.floor(now()/5000), body=[];
+    for (let i=11;i>=0;i--){ const slot=last-i, t=slot*5000; if (t < st+1000) continue; const r=prng(slot), n=150+Math.floor(r()*120), amt=(n*0.0045).toFixed(2);
+      body.push(`${ts(t)} INFO  sweep batch #${slot%1000000}: ${n} remainders -> ACCT-9981 (+$${amt}) total=${money(shaverTotal(t))}`); }
+    return H.concat(body);
+  }
+  return steady(p, GEN[a.log]||GEN.generic);
+}
+function cmdLogs(o, ns){
+  let t=o.pos[1], name=o.pos[2];
+  if (!t){ err(`error: expected 'logs [-f] [-p] (POD | TYPE/NAME) [-c CONTAINER]'.\nPOD or TYPE/NAME is a required argument for the logs command\nSee 'kubectl logs -h' for help and examples`); return; }
+  let p;
+  if (t.includes('/')){
+    const [ty, n] = t.split('/'); const k = RT[ty];
+    if (k==='pods') name=n;
+    else if (k==='deployments'||k==='statefulsets'){ const d=k==='statefulsets'?stsOf(ns,n):dep(ns,n); if (!d){ err(`error: ${k}.apps "${n}" not found`); const w=whereIs(n,'deployments'); if (w) tip(w); return; }
+      p = S.pods.filter(x=>x.ns===ns&&x.dep===n&&!x.term).sort((a,b)=>b.created-a.created)[0];
+      if (!p){ err(`error: timed out waiting for the condition`); tip(`${n} has no running pods (it is scaled to ${d.replicas}).`); return; }
+      if (S.pods.filter(x=>x.ns===ns&&x.dep===n&&!x.term).length>1) dim(`Found ${S.pods.filter(x=>x.ns===ns&&x.dep===n&&!x.term).length} pods, using pod/${p.name}`);
+    } else { err(`error: cannot get logs from ${ty}`); return; }
+  } else if ((t==='pod'||t==='pods') && name){ /* lenient */ } else { name=t; }
+  if (!p){
+    if (o.ns) nsCheck(ns);
+    p = S.pods.find(x=>x.ns===ns&&x.name===name);
+    if (!p){ err(`Error from server (NotFound): pods "${name}" not found`); const w=whereIs(name); if (w) tip(w); return; }
+  }
+  const a=APPS[p.dep], v=pv(p);
+  if (o.container && o.container!==a.c){ err(`error: container ${o.container} is not valid for pod ${p.name}`); return; }
+  if (p.dep==='ledger-auditor' && !p.term) S.flags.auditorLogs=true;
+  if (v.kind==='creating'){ err(`Error from server (BadRequest): container "${a.c}" in pod "${p.name}" is waiting to start: ContainerCreating`); return; }
+  if (o.prev && !(v.restarts>0 || v.kind==='backoff')){ err(`Error from server (BadRequest): previous terminated container "${a.c}" in pod "${p.name}" not found`); tip('--previous only works when a container has restarted at least once (RESTARTS > 0).'); return; }
+  let lines = logLines(p, o.prev);
+  if (o.since!=null){ const d=parseDur(o.since); if (d==null||/[d]/.test(o.since)){ err(`error: invalid argument "${o.since}" for "--since" flag: use a duration like 30s, 10m or 1h`); return; }
+    lines = lines.filter(l=>{ const m=l.match(TSRE); return !m || Date.parse(m[1]+m[3]) >= now()-d; }); learn('logssince'); }
+  if (o.timestamps){ lines = lines.map(l=>{ const m=l.match(TSRE); return (m? m[1]+'.'+hex(l,9).replace(/[a-f]/g,'4')+m[3] : ts(now())) + ' ' + l; }); learn('logssince'); }
+  if (o.tail!=null){ const n=parseInt(o.tail,10); if (isNaN(n)){ err(`error: invalid argument "${o.tail}" for "--tail" flag`); return; } if (n>=0) lines=lines.slice(-n); learn('tail'); }
+  raw(lines.join('\n') || '');
+  if (o.follow) dim('(-f would keep streaming new lines until you press Ctrl+C. Not simulated here.)');
+  learn(o.prev?'logsprev':'logs');
+  emit({verb:'logs',ns:p.ns,deploy:p.dep,pod:p.name,prev:o.prev,healthy:!p.crash&&v.kind==='running'&&!p.term});
+}
+
+/* ---------- scale / delete / rollout ---------- */
+function protectedNs(ns){
+  if (ns==='kube-system'||ns==='monitoring'){ tip(`Hands off: ${ns} belongs to the Platform team. Changing it would page half the company. (Blocked in this sim.)`); return true; }
+  return false;
+}
+/* Stops changes that would destroy evidence a later mission needs, or that touch
+   healthy apps outside the incident. Each block is phrased as a real-world lesson. */
+function guard(depName, ns, verb){
+  const cur = CH[S.chapter] ? CH[S.chapter].t : 'case closed';
+  const before = id => !S.done && S.chapter < chIdx(id);
+  if (S.deps.some(x=>x.ns===ns && x.name===depName && x.sts)){
+    tip(`${depName} is a StatefulSet, and it holds the ledger's database. Its pod keeps the same name (${depName}-0) and the same disk every time it restarts. Scaling, deleting or restarting it can interrupt or damage stored data, so that's on the Platform team's (Tier 3) cheat sheet, not ours. Looking is fine: kubectl get sts, kubectl describe sts. (Blocked in this sim.)`); return true; }
+  if (ns==='bank-prod' && ['payments-worker','web-frontend','fraud-detector'].includes(depName)){
+    tip(`${depName} isn't part of tonight's incident. At work, only restart what the Platform team asks you to: restarting a healthy app can cause a new outage, and it throws away the old pods' logs and restart history. (Blocked in this sim. bank-staging is fair game if you want to experiment.)`); return true; }
+  if (ns==='bank-prod' && depName==='nightly-statements'){ tip('That pod belongs to a finished scheduled job. It isn\'t hurting anything, and its logs are the record of last night\'s run. (Blocked in this sim.)'); return true; }
+  if (ns==='bank-prod' && depName==='ledger-api' && before('revive')){
+    tip(`Hold on. Restarting ledger-api now would replace the crashing pod, and with it the evidence: its logs, its restart history and the events showing when the crashing began. Gather the evidence first, and stop whatever is corrupting the ledger, or a new pod will just crash the same way. (Current mission: ${cur})`); return true; }
+  if (ns==='tmp-reconcile' && depName==='rounding-helper' && before('paper')){
+    tip(`Good instinct, but gather the evidence first: once its pod is gone, so are its logs. Read its logs and describe it, then stop it. (Current mission: ${cur})`); return true; }
+  if (ns==='bank-prod' && depName==='ledger-auditor' && before('restore')){
+    tip(`Not yet. Someone stopped ledger-auditor on purpose, and you'll want to know why before you change it. (Current mission: ${cur})`); return true; }
+  return false;
+}
+function cmdScale(o, ns){
+  if (o.replicas==null){ err(`error: required flag(s) "replicas" not set`); tip('Tell scale how many pods you want, e.g. --replicas=0'); return; }
+  let {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  if (type==='pods'){ err(`error: the server could not find the requested resource`); tip('Pods cannot be scaled on their own. Scale the Deployment that owns them (kubectl get deployments -n <ns>).'); return; }
+  if (type!=='deployments' && type!=='replicasets' && type!=='statefulsets'){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (!names.length){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  const r = Number(o.replicas);
+  if (!Number.isInteger(r) || r<0){ err(`error: The --replicas=COUNT flag is required, and COUNT must be greater than or equal to 0`); return; }
+  if (o.ns) nsCheck(ns);
+  if (protectedNs(ns)) return;
+  const n = names[0].replace(new RegExp('-[a-z0-9]{9,10}$'),'');
+  if (type==='statefulsets'){ const sd=stsOf(ns,names[0]); if (!sd){ err(`Error from server (NotFound): statefulsets.apps "${names[0]}" not found`); return; } guard(sd.name, ns, 'scale'); return; }
+  const d = dep(ns, type==='replicasets'?n:names[0]);
+  if (!d){ err(`Error from server (NotFound): deployments.apps "${names[0]}" not found`); const w=whereIs(names[0],'deployments'); if (w) tip(w); return; }
+  if (guard(d.name, ns, 'scale')) return;
+  if (r>5){ tip('Whoa, easy. The cluster budget says 5 replicas max in this sim.'); return; }
+  const old=d.replicas; d.replicas=r;
+  if (old!==r) ev(ns,'Normal','ScalingReplicaSet',`deployment/${d.name}`,`Scaled ${r>old?'up':'down'} replica set ${d.name}-${d.hash} from ${old} to ${r}`,'deployment-controller');
+  reconcile();
+  raw(`deployment.apps/${d.name} scaled`);
+  learn('scale');
+  let wasZero=false;
+  if (d.name==='ledger-api' && d.ns==='bank-prod'){
+    if (r===0) S.flags.ledgerZero=true;
+    else { wasZero = !!S.flags.ledgerZero && !shaverActive(); S.flags.ledgerZero=false;
+      if (shaverActive() && old===0) tip('Heads up: whatever is corrupting the ledger is still running, so the new pod will likely crash the same way.'); }
+  }
+  if (d.name==='rounding-helper' && r===0 && !S.flags.containedAt) S.flags.containedAt = now();
+  if (d.name==='rounding-helper' && r>0 && S.chapter>chIdx('stop')) tip("You just turned the penny-shaver back on! Scale it back to 0 (and don't tell the auditors).");
+  emit({verb:'scale',ns,deploy:d.name,replicas:r,wasZero});
+}
+function cmdDelete(o, ns){
+  const {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`error: You must provide one or more resources by argument or filename.`); return; }
+  if (!type){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (type!=='pods'){ tip(`Deleting ${type} is disabled in this sim, and at work it's usually a job for the escalation team. It destroys config and evidence. Scaling a deployment to 0 is the reversible move.`); return; }
+  if (o.allFlag){ tip('Deleting every pod at once is a great way to cause an outage. Blocked in this sim.'); return; }
+  if (!names.length){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  if (o.ns) nsCheck(ns);
+  if (protectedNs(ns)) return;
+  const targets=[];
+  for (const n of names){ const p=S.pods.find(x=>x.ns===ns&&x.name===n); if (!p){ err(`Error from server (NotFound): pods "${n}" not found`); const w=whereIs(n); if (w) tip(w); return; } targets.push(p); }
+  for (const p of targets) if (guard(p.dep, ns, 'delete')) return;
+  for (const p of targets){ terminate(p); raw(`pod "${p.name}" deleted from ${ns} namespace`); }
+  reconcile();
+  learn('deletepod');
+  for (const p of targets){
+    if (p.dep==='rounding-helper' && dep(p.ns,p.dep).replicas>0) tip(`Check kubectl get pods -n ${p.ns}. The Deployment already started a replacement pod. Pods owned by a Deployment come back; to stop them for good, scale the Deployment.`);
+    emit({verb:'delete',ns:p.ns,deploy:p.dep,pod:p.name});
+  }
+}
+function cmdRollout(o, ns){
+  const sub=o.pos[1]; let t=o.pos[2], n=o.pos[3];
+  if (!sub || !['restart','status','history','undo','pause','resume'].includes(sub)){ err(`error: unknown command "${sub||''}" for "kubectl rollout"\nAvailable: restart, status, history`); return; }
+  if (t && t.includes('/')){ [t,n]=t.split('/'); }
+  if (!t || (RT[t]!=='deployments' && RT[t]!=='statefulsets')){ err(`error: you must specify a deployment, e.g. kubectl rollout ${sub} deployment <name>`); return; }
+  if (!n){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  const d = RT[t]==='statefulsets' ? stsOf(ns,n) : dep(ns,n);
+  if (d && d.sts && sub==='restart'){ guard(n, ns, 'rollout'); return; }
+  if (!d){ err(`Error from server (NotFound): ${RT[t]}.apps "${n}" not found`); const w=whereIs(n,'deployments'); if (w) tip(w); return; }
+  if (sub==='status'){
+    const rdy=depReady(d);
+    raw(rdy>=d.replicas ? `deployment "${n}" successfully rolled out` : `Waiting for deployment "${n}" rollout to finish: ${rdy} of ${d.replicas} updated replicas are available...`);
+    if (rdy<d.replicas) dim('(real kubectl would keep waiting here; run it again in a few seconds)');
+    return;
+  }
+  if (sub==='history'){ raw(`deployment.apps/${n}\nREVISION  CHANGE-CAUSE\n${Array.from({length:d.old.length+1},(_,i)=>`${i+1}         <none>`).join('\n')}`); return; }
+  if (sub!=='restart'){ tip(`rollout ${sub} isn't part of this case.`); return; }
+  if (protectedNs(ns)) return;
+  if (guard(n, ns, 'rollout')) return;
+  d.old.push(d.hash); d.hash = hex(n+now(),9).replace(/[aeiou01]/g,'7').slice(0,9);
+  S.pods.filter(p=>p.ns===ns&&p.dep===n&&!p.term).forEach(terminate);
+  ev(ns,'Normal','ScalingReplicaSet',`deployment/${n}`,`Scaled up replica set ${n}-${d.hash} from 0 to ${d.replicas}`,'deployment-controller');
+  reconcile();
+  raw(`deployment.apps/${n} restarted`);
+  learn('rollout');
+  if (n==='ledger-api' && ns==='bank-prod') S.flags.ledgerZero=false;
+  emit({verb:'rollout',ns,deploy:n});
+}
+
+/* ---------- config / top ---------- */
+function cmdConfig(o){
+  const sub=o.pos[1];
+  if (sub==='set-context'){
+    if (!o.current && o.pos[2]!==CTX){ err(`error: you must specify a context name or --current`); return; }
+    if (!o.ns){ raw(`Context "${CTX}" modified.`); return; }
+    S.ns=o.ns; raw(`Context "${CTX}" modified.`); nsCheck(o.ns); learn('setns'); renderSide();
+    dim(`(Commands without -n now use the "${o.ns}" namespace.)`);
+    return;
+  }
+  if (sub==='get-contexts'){ raw(table([['CURRENT','NAME','CLUSTER','AUTHINFO','NAMESPACE'],['*',CTX,CTX,'night-shift',S.ns],['','granite-staging','granite-staging','night-shift','bank-staging']])); return; }
+  if (sub==='current-context'){ raw(CTX); return; }
+  if (sub==='view'){ raw(`apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: DATA+OMITTED\n    server: https://api.granite-prod.internal:6443\n  name: ${CTX}\ncontexts:\n- context:\n    cluster: ${CTX}\n    namespace: ${S.ns}\n    user: night-shift\n  name: ${CTX}\ncurrent-context: ${CTX}\nkind: Config\nusers:\n- name: night-shift\n  user:\n    token: REDACTED`); return; }
+  if (sub==='use-context'){ tip('Only one context matters tonight: granite-prod.'); return; }
+  err(`error: unknown command "${sub||''}" for "kubectl config"\nAvailable: set-context, get-contexts, current-context, view`);
+}
+function cmdTop(o, ns){
+  const sub=o.pos[1];
+  if (sub==='nodes'||sub==='node'||sub==='no'){
+    raw(table([['NAME','CPU(cores)','CPU(%)','MEMORY(bytes)','MEMORY(%)'], ...NODES.map((n,i)=>[n[0],`${900+i*310}m`,`${11+i*4}%`,`${9100+i*1700}Mi`,`${28+i*5}%`])])); return;
+  }
+  if (sub!=='pods'&&sub!=='pod'&&sub!=='po'){ err(`error: unknown command "${sub||''}" for "kubectl top"\nAvailable: pods, nodes`); return; }
+  const list=S.pods.filter(p=>(o.all||p.ns===ns) && !['creating','completed'].includes(pv(p).kind) && !p.term);
+  if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+  learn('top');
+  raw(table([[...(o.all?['NAMESPACE']:[]),'NAME','CPU(cores)','MEMORY(bytes)'], ...list.map(p=>{ const r=prng(hash(p.name)); const crash=p.crash&&pv(p).kind!=='running'; return [...(o.all?[p.ns]:[]),p.name, crash?'0m':`${1+Math.floor(r()*(p.dep==='rounding-helper'?40:180))}m`, crash?'3Mi':`${12+Math.floor(r()*400)}Mi`]; })]));
+}
+
+/* ---------- game commands ---------- */
+function gameHelp(){
+  raw(`Game commands:
+  hint              a nudge for the current mission (asks again for a bigger nudge)
+  mission           show the current mission
+  clues             show your case file
+  answer <text>     answer a mission question (e.g. answer 45m, answer intentional)
+  codes             why pods stop: exit codes and events
+  accuse <name>     accuse marcus, dana or priya (when you have the evidence)
+  escalate          hand the case to the Platform team
+  history           commands you've typed
+  clear             clear the screen (or Ctrl+L)
+  restart           start a new game
+
+Everything else starts with kubectl (or its common alias, k).
+Also:  watch -n 1 kubectl get pods -n <ns>      live view (Ctrl+C or Enter stops it)
+       kubectl ... | grep -i <text> | sort -u    filter output (also head, tail, wc -l)
+Try: kubectl help`);
+}
+/* ---------- pipes ( | grep, | sort -u … ) and watch ---------- */
+let CAP = null, EMITQ = null, WATCH = null;
+function splitPipes(str){
+  const segs=[]; let cur='', q=null;
+  for (const ch of str){
+    if (q){ if (ch===q) q=null; cur+=ch; continue; }
+    if (ch==='"'||ch==="'"){ q=ch; cur+=ch; continue; }
+    if (ch==='|'){ segs.push(cur); cur=''; continue; }
+    cur+=ch;
+  }
+  segs.push(cur);
+  return segs;
+}
+function capture(fn){
+  CAP=[]; EMITQ=[];
+  let c, q;
+  try { fn(); } finally { c=CAP; q=EMITQ; CAP=null; EMITQ=null; }
+  return { stdout: c.filter(b=>b.cls==='raw').map(b=>b.text).join('\n'), other: c.filter(b=>b.cls!=='raw'), q };
+}
+function dispatchTop(tk){
+  if (tk[0]==='kubectl'||tk[0]==='k') kubectl(tk.slice(1));
+  else if (GAME.includes(tk[0])) err(`${tk[0]} is a game command, and game commands can't be piped.`);
+  else err(`bash: ${tk[0]}: command not found`);
+}
+function applyFilter(lines, tk){
+  const cmd=tk[0], args=tk.slice(1);
+  if (['grep','egrep','fgrep'].includes(cmd)){
+    let i=false, v=false, c=false, E=cmd==='egrep', F=cmd==='fgrep', pat=null;
+    for (const a of args){
+      if (a.startsWith('--color')||a==='--colour') continue;
+      if (a==='--ignore-case'){ i=true; continue; } if (a==='--invert-match'){ v=true; continue; } if (a==='--count'){ c=true; continue; }
+      if (/^-[ivcEFnwoH]+$/.test(a)){ if (a.includes('i')) i=true; if (a.includes('v')) v=true; if (a.includes('c')) c=true; if (a.includes('E')) E=true; if (a.includes('F')) F=true; continue; }
+      if (a.startsWith('-') && pat===null){ return {error:`grep: invalid option -- '${a.replace(/^-+/,'')}'`}; }
+      if (pat===null) pat=a; else return {error:`grep: ${a}: No such file or directory`};
+    }
+    if (pat===null) return {error:"Usage: grep [OPTION]... PATTERNS [FILE]...\nTry 'grep --help' for more information."};
+    const esc = x => x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    let src = F ? esc(pat) : E ? pat : pat.replace(/\\\|/g,'\u0000').replace(/\|/g,'\\|').replace(/\u0000/g,'|');
+    let re; try { re = new RegExp(src, i?'i':''); } catch(_) { re = new RegExp(esc(pat), i?'i':''); }
+    const m = lines.filter(l => re.test(l) !== v);
+    return {lines: c ? [String(m.length)] : m, grep:true};
+  }
+  if (cmd==='sort'){
+    let u=false, r=false, n=false;
+    for (const a of args){ if (a==='--unique') u=true; else if (a==='--reverse') r=true; else if (/^-[urn]+$/.test(a)){ if (a.includes('u')) u=true; if (a.includes('r')) r=true; if (a.includes('n')) n=true; } else return {error:`sort: invalid option -- '${a.replace(/^-+/,'')}'`}; }
+    let L=[...lines].sort((a,b)=> n ? (parseFloat(a)||0)-(parseFloat(b)||0) : (a<b?-1:a>b?1:0));
+    if (u) L=L.filter((x,k)=>k===0||x!==L[k-1]);
+    if (r) L.reverse();
+    return {lines:L};
+  }
+  if (cmd==='uniq'){ return {lines: lines.filter((x,k)=>k===0||x!==lines[k-1])}; }
+  if (cmd==='head'||cmd==='tail'){
+    let n=10;
+    for (let k=0;k<args.length;k++){ const a=args[k]; let m;
+      if (a==='-n'||a==='--lines'){ n=parseInt(args[++k],10); }
+      else if ((m=a.match(/^-n?(\d+)$/))||(m=a.match(/^--lines=(\d+)$/))) n=+m[1];
+      else return {error:`${cmd}: invalid option -- '${a.replace(/^-+/,'')}'`}; }
+    if (isNaN(n)) return {error:`${cmd}: invalid number of lines`};
+    return {lines: cmd==='head' ? lines.slice(0,n) : lines.slice(Math.max(0,lines.length-n))};
+  }
+  if (cmd==='wc'){
+    const L = lines.length===1 && lines[0]==='' ? [] : lines;
+    if (args.includes('-l')) return {lines:[String(L.length)]};
+    const words = L.join(' ').split(/\s+/).filter(Boolean).length, chars = L.reduce((s,l)=>s+l.length+1,0);
+    return {lines:[`${String(L.length).padStart(7)} ${String(words).padStart(7)} ${String(chars).padStart(7)}`]};
+  }
+  if (cmd==='less'||cmd==='more'||cmd==='cat') return {lines};
+  return {error:`bash: ${cmd}: command not found`};
+}
+function pipeline(cmdStr){
+  const segs = splitPipes(cmdStr);
+  if (segs.some(x=>!x.trim())) return {lines:[], other:[{text:"bash: syntax error near unexpected token `|'",cls:'err'}], q:[], grep:false};
+  const res = capture(()=>dispatchTop(tokenize(segs[0])));
+  let lines = res.stdout==='' ? [] : res.stdout.split('\n'), grep=false;
+  const other = res.other;
+  for (const seg of segs.slice(1)){
+    const tk = tokenize(seg), r = applyFilter(lines, tk);
+    if (r.error){ other.push({text:r.error, cls:'err'}); lines=[]; break; }
+    lines = r.lines; if (r.grep) grep=true;
+  }
+  return {lines, other, q:res.q, grep, piped:segs.length>1};
+}
+function runPiped(cmdStr){
+  const first = tokenize(splitPipes(cmdStr)[0]);
+  if (first[0]==='watch'){ tip(`To watch a piped command, put the whole command in quotes:\n  watch -n 1 "${splitPipes(cmdStr).slice(0).join('|').replace(/^\s*watch\s+(-n\s*\S+\s+)?/,'').trim()}"`); return; }
+  const r = pipeline(cmdStr);
+  if (r.lines.length) raw(r.lines.join('\n'));
+  else if (r.grep && !r.other.length) dim('(grep found no matching lines)');
+  r.other.forEach(b=>blk(b.text, b.cls));
+  if (r.grep){ learn('grep'); S.flags.usedPipe = true; }
+  r.q.forEach(emit);
+}
+function watchDate(ms){ const d=new Date(ms); return `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]} ${String(d.getDate()).padStart(2)} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())} ${d.getFullYear()}`; }
+function startWatch(args){
+  let iv=2, k=0;
+  while (k<args.length && args[k].startsWith('-')){
+    const a=args[k]; let m;
+    if (a==='-n'||a==='--interval'){ iv=parseFloat(args[k+1]); k+=2; continue; }
+    if ((m=a.match(/^(?:-n|--interval=)(\d+(?:\.\d+)?)$/))){ iv=+m[1]; k++; continue; }
+    if (['-d','-t','--differences','--no-title','-c','--color'].includes(a)){ k++; continue; }
+    err(`watch: invalid option -- '${a.replace(/^-+/,'')}'`); return;
+  }
+  if (isNaN(iv)){ err('watch: failed to parse argument'); return; }
+  const rest = args.slice(k);
+  if (!rest.length){ err('Usage:\n watch [options] command'); return; }
+  const cmd = rest.length===1 ? rest[0] : rest.map(t=>/[\s()]/.test(t)?`'${t}'`:t).join(' ');
+  if (!/^\s*(kubectl|k)\b/.test(cmd)){ tip('In this sim, watch works with kubectl commands, e.g. watch -n 1 kubectl get pods -n bank-prod'); return; }
+  iv = Math.min(60, Math.max(0.5, iv));
+  learn('watch');
+  const el = blk('', 'raw watch');
+  WATCH = {cmd, iv, el, q:null, grep:false};
+  const tick = () => {
+    const r = pipeline(cmd);
+    if (!WATCH.q){ WATCH.q = r.q; WATCH.grep = r.grep; }
+    const extra = r.other.filter(b=>b.cls==='err').map(b=>b.text);
+    el.textContent = `Every ${iv.toFixed(1)}s: ${cmd}    night-shift: ${watchDate(now())}\n\n${[...r.lines, ...extra].join('\n')}`;
+    out.scrollTop = out.scrollHeight;
+  };
+  tick();
+  WATCH.timer = setInterval(tick, iv*1000);
+  inp.placeholder = 'watching… press Ctrl+C or Enter to stop';
+  $('#inrow').classList.add('watching');
+}
+function stopWatch(){
+  if (!WATCH) return;
+  clearInterval(WATCH.timer);
+  const q = WATCH.q || [], g = WATCH.grep; WATCH = null;
+  inp.placeholder = ''; $('#inrow').classList.remove('watching');
+  dim('^C  (watch stopped)');
+  if (g){ learn('grep'); S.flags.usedPipe = true; }
+  q.forEach(emit); renderSide();
+}
+
+function run(line){
+  const cmd=line.trim();
+  echo(line);
+  if (!cmd) return;
+  S.history.push(cmd); S.hpos=S.history.length; S.cmds++;
+  if (splitPipes(cmd).length>1){ runPiped(cmd); renderSide(); return; }
+  const tk=tokenize(cmd); const head=tk[0];
+  if (head==='kubectl'||head==='k'){ kubectl(tk.slice(1)); renderSide(); return; }
+  if (head==='watch'){ startWatch(tk.slice(1)); return; }
+  switch(head.toLowerCase()){
+    case 'help': case '?': gameHelp(); return;
+    case 'hint': hint(); return;
+    case 'answer': case 'report': {
+      const text = tk.slice(1).join(' ');
+      if (S.done){ dim('The case is closed. Type restart to play again.'); return; }
+      if (!CH[S.chapter].q){ dim(`There's no question to answer right now. (Current mission: ${CH[S.chapter].t})`); return; }
+      if (!text){ err('Usage: answer <your answer>'); return; }
+      emit({verb:'answer', text}); return; }
+    case 'codes': case 'exitcodes': raw(`Why did it stop?  (describe pod → State / Last State, plus get events)
+  Exit 0    Completed   finished its job normally. Nothing to fix.
+  Exit 1    Error       the app quit because of an error. Read logs --previous.
+  Exit 137  OOMKilled   used more memory than its limit, so the system killed it.
+  Events: Killing / ScalingReplicaSet / SuccessfulDelete
+                        stopped on purpose (scale down, delete, rollout restart).
+                        Events show WHAT and WHEN, not WHO. Events fade after ~1 hour.`); return;
+    case 'mission': case 'objective': showMission(); if (S.done) dim('Case closed. Type restart to play again.'); return;
+    case 'clues': case 'casefile': case 'case': raw(S.clues.length? 'CASE FILE\n'+S.clues.map(c=>'  ◆ '+c).join('\n') : 'Your case file is empty. Go find something.'); return;
+    case 'clear': case 'cls': out.innerHTML=''; showMission(); return;
+    case 'history': raw(S.history.map((h,i)=>`${String(i+1).padStart(4)}  ${h}`).join('\n')); return;
+    case 'restart': case 'reset': start(); return;
+    case 'accuse': return accuse((tk[1]||'').toLowerCase());
+    case 'escalate':
+      if (S.chapter < CH.length-1){ tip(`You could escalate now. In real life, when in doubt, you should! But this handoff will be a lot more useful with the ledger healthy and a name attached. (Current mission: ${CH[S.chapter].t})`); return; }
+      emit({verb:'escalate'}); return;
+    case 'whoami': raw('night-shift'); return;
+    case 'sudo': err('night-shift is not in the sudoers file. This incident will be reported.'); tip('...to the Platform team, who will be delighted.'); return;
+    case 'ls': case 'cd': case 'pwd': case 'cat': case 'vim': case 'nano':
+      tip(`No shell tricks tonight, detective. Everything you need comes from kubectl.`); return;
+    case 'docker': tip('This cluster runs containerd. Stick with kubectl.'); return;
+    default:
+      err(`bash: ${head}: command not found`);
+      if (/^(get|describe|logs|scale|delete|rollout)$/.test(head)) tip(`Did you mean kubectl ${cmd}?`);
+      else dim('Type help for game commands. Cluster commands start with kubectl.');
+  }
+}
+function accuse(who){
+  const names={marcus:'marcus',okafor:'marcus','m.okafor':'marcus',dana:'dana',reyes:'dana','d.reyes':'dana',priya:'priya',shah:'priya'};
+  const w=names[who];
+  if (!w){ err('Usage: accuse <marcus|dana|priya>'); return; }
+  if (S.done){ dim('The case is already closed.'); return; }
+  if (S.chapter < chIdx('accuse')){ tip(`It's too early to point fingers. Finish the investigation first. (Current mission: ${CH[S.chapter].t})`); return; }
+  if (S.chapter > chIdx('accuse')){ dim('You already named the culprit. Now type escalate.'); return; }
+  if (w==='marcus'){ S.wrong++; narr(`Marcus looks up from his coffee, baffled.\nHis name only appears in an annotation, and annotations are free text anyone with deploy access can write. Look harder at where the image came from and which service account the pod runs as.`); return; }
+  if (w==='priya'){ S.wrong++; narr(`Priya was asleep. Her only role tonight was getting paged, same as you.\nCheck the rounding-helper's image registry path, its service account, and the payout account holder.`); return; }
+  emit({verb:'accuse',who:'dana'});
+}
+
+/* ---------- completion ---------- */
+function nsFromParts(parts){ for (let i=0;i<parts.length;i++){ if ((parts[i]==='-n'||parts[i]==='--namespace')&&parts[i+1]) return parts[i+1]; if (parts[i].startsWith('--namespace=')) return parts[i].slice(12); } return null; }
+function namesOf(kind, ns, all){
+  const f = x => all || !ns || x.ns===ns;
+  if (kind==='pods') return S.pods.filter(f).map(p=>({n:p.name,ns:p.ns}));
+  if (kind==='deployments') return S.deps.filter(d=>f(d)&&!d.sts).map(d=>({n:d.name,ns:d.ns}));
+  if (kind==='statefulsets') return S.deps.filter(d=>f(d)&&d.sts).map(d=>({n:d.name,ns:d.ns}));
+  if (kind==='namespaces') return S.namespaces.map(n=>({n:n.name}));
+  if (kind==='nodes') return NODES.map(n=>({n:n[0]}));
+  if (kind==='services'){ const r=[]; for (const k of Object.keys(SVCS)) if (all||!ns||k===ns) SVCS[k].forEach(s=>r.push({n:s[0],ns:k})); return r; }
+  return [];
+}
+function complete(){
+  if (inp.value.includes('|')) return;
+  const wm = inp.value.match(/^watch\s+(?:(?:-n|--interval)[\s=]*[\d.]+\s+|-[dt]\s+)*/);
+  if (wm){ const pre=wm[0]; inp.value=inp.value.slice(pre.length); try { completeInner(); } finally { inp.value = pre + inp.value; } return; }
+  completeInner();
+}
+function completeInner(){
+  const val=inp.value, parts=val.split(' '), cur=parts[parts.length-1], before=parts.slice(0,-1).filter(Boolean);
+  let cands=null, kind=null, prefixT='';
+  const nsI=nsFromParts(before), all=before.includes('-A')||before.includes('--all-namespaces');
+  if (!before.length) cands=['kubectl',...GAME].map(n=>({n}));
+  else if (before[0]==='kubectl'||before[0]==='k'){
+    const rest=before.slice(1), last=rest[rest.length-1], pos=[];
+    for (let i=0;i<rest.length;i++){ const a=rest[i]; if (['-n','--namespace','-o','-c','--tail','--replicas','--container','--output'].includes(a)){ i++; continue; } if (a.startsWith('-')) continue; pos.push(a); }
+    if (last==='-n'||last==='--namespace') cands=namesOf('namespaces');
+    else if (last==='-o'||last==='--output') cands=['wide','name'].map(n=>({n}));
+    else if (cur.startsWith('-')) cands=FLAGS.map(n=>({n}));
+    else if (cur.includes('/')){ const t=cur.split('/')[0]; kind=RT[t]; prefixT=t+'/'; }
+    else if (!pos.length) cands=VERBS.map(n=>({n}));
+    else {
+      const v=pos[0];
+      if (v==='config') cands = pos.length===1 ? ['set-context','get-contexts','current-context','view'].map(n=>({n})) : [];
+      else if (v==='rollout') { if (pos.length===1) cands=['restart','status','history'].map(n=>({n})); else if (pos.length===2) cands=[{n:'deployment'}]; else kind='deployments'; }
+      else if (v==='logs'||v==='log') kind='pods';
+      else if (['get','describe','delete','scale','top'].includes(v)){
+        if (pos.length===1) cands=(v==='top'?['pods','nodes']:v==='scale'?['deployment']:['pods','deployments','statefulsets','namespaces','services','events','nodes','replicasets','all']).map(n=>({n}));
+        else kind=RT[pos[1]]||null;
+      }
+    }
+  } else if (before[0]==='accuse') cands=['marcus','dana','priya'].map(n=>({n}));
+  if (!cands && !kind) return;
+  const base = cur.slice(prefixT.length);
+  let m, fallback=false;
+  if (kind){
+    m = namesOf(kind, nsI||S.ns, all).filter(x=>x.n.startsWith(base));
+    if (!m.length && !nsI && !all){ m = namesOf(kind, null, true).filter(x=>x.n.startsWith(base)); fallback=true; }
+  } else m = cands.filter(x=>x.n.startsWith(cur));
+  const uniq=[...new Map(m.map(x=>[x.n+'|'+(x.ns||''),x])).values()];
+  if (!uniq.length) return;
+  const head = parts.slice(0,-1).join(' ') + (parts.length>1?' ':'');
+  if (uniq.length===1 || new Set(uniq.map(x=>x.n)).size===1){
+    const x=uniq[0];
+    let add = prefixT + x.n + ' ';
+    if (fallback && x.ns && !nsI) add += `-n ${x.ns} `;
+    inp.value = head + add;
+    return;
+  }
+  const names=[...new Set(uniq.map(x=>x.n))];
+  let cp=names[0]; for (const n of names) while (!n.startsWith(cp)) cp=cp.slice(0,-1);
+  if (cp.length > base.length){ inp.value = head + prefixT + cp; return; }
+  echo(val);
+  const multiNs = new Set(uniq.map(x=>x.ns)).size>1;
+  raw(uniq.map(x=>prefixT+x.n+(multiNs&&x.ns?`  (${x.ns})`:'')).join('\n'));
+  if (multiNs && !nsI) dim('Matches in more than one namespace. Put -n <namespace> before the name, then press Tab again.');
+}
+
+/* ---------- input ---------- */
+inp.addEventListener('keydown', e=>{
+  if (WATCH){ if (e.key==='Enter'||e.key==='Escape'||(e.ctrlKey&&(e.key==='c'||e.key==='C'))){ e.preventDefault(); inp.value=''; stopWatch(); } else if (!(e.ctrlKey||e.metaKey)) e.preventDefault(); return; }
+  if (e.key==='Enter'){ const v=inp.value; inp.value=''; run(v); out.scrollTop=out.scrollHeight; }
+  else if (e.key==='Tab'){ e.preventDefault(); complete(); }
+  else if (e.key==='ArrowUp'){ e.preventDefault(); if (S.hpos>0){ S.hpos--; inp.value=S.history[S.hpos]; } }
+  else if (e.key==='ArrowDown'){ e.preventDefault(); if (S.hpos<S.history.length-1){ S.hpos++; inp.value=S.history[S.hpos]; } else { S.hpos=S.history.length; inp.value=''; } }
+  else if (e.ctrlKey && (e.key==='l'||e.key==='L')){ e.preventDefault(); out.innerHTML=''; showMission(); }
+  else if (e.ctrlKey && (e.key==='c'||e.key==='C') && !window.getSelection().toString()){ e.preventDefault(); echo(inp.value+'^C'); inp.value=''; }
+});
+$('#term').addEventListener('click', ()=>{ if (!window.getSelection().toString()) inp.focus(); });
+$('#hintBtn').addEventListener('click', ()=>{ stopWatch(); echo('hint'); hint(); inp.focus(); });
+
+function start(){
+  out.innerHTML='';
+  newState(); renderManual(); renderSide(); $('#hT').textContent = clock(now()); briefing(); inp.focus();
+}
+start();
+})();
+</script>
+</body>
+</html>
