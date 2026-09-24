@@ -3,21 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Night shift at a bank. The ledger service is crash-looping and someone is skimming fractions of a cent. Work out who, using real kubectl commands.">
-<meta name="theme-color" content="#0b0f14">
+<meta name="description" content="Far side of the Moon. Life support is crash-looping and the Earth uplink is dead. Nobody sabotaged anything: an automation did exactly what it was told.">
+<meta name="theme-color" content="#000300">
 <meta property="og:type" content="website">
-<meta property="og:title" content="The Midnight Ledger - a kubectl mystery">
-<meta property="og:description" content="Night shift at a bank. The ledger service is crash-looping and someone is skimming fractions of a cent. Work out who, using real kubectl commands.">
+<meta property="og:title" content="Moon Base: Dark Side - a kubectl survival shift">
+<meta property="og:description" content="Far side of the Moon. Life support is crash-looping and the Earth uplink is dead. Nobody sabotaged anything: an automation did exactly what it was told.">
 <meta name="twitter:card" content="summary">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0f14'/%3E%3Cpath d='M7 10l5 6-5 6' stroke='%23e3b341' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='15' y='19' width='10' height='3' rx='1.5' fill='%23e3b341'/%3E%3C/svg%3E">
-<title>The Midnight Ledger — a kubectl mystery</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23000300'/%3E%3Cpath d='M7 10l5 6-5 6' stroke='%2339ff14' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='15' y='19' width='10' height='3' rx='1.5' fill='%2339ff14'/%3E%3C/svg%3E">
+<title>Moon Base: Dark Side — a kubectl survival shift</title>
 <style>
 :root{
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
   /* The game's own colour. It stays put in every theme, so the bank always reads
      goldenrod and the moon base always reads neon green. */
-  --brand:#e3b341; --brand-light:#8a6410;
+  --brand:#39ff14; --brand-light:#14710a;
   --amber:var(--brand);
+  --glow:rgba(57,255,20,.35);
 }
 :root,:root[data-theme="dark"]{
   color-scheme:dark;
@@ -31,6 +32,7 @@
   --bg:#ffffff; --panel:#f6f8fa; --panel2:#ffffff; --line:#d8dee4;
   --fg:#1f2328; --dim:#656d76; --red:#cf222e; --green:#1a7f37; --cyan:#0550ae; --violet:#8250df;
   --hover:#eef1f4; --missionbg:#f2f7ff; --missionbd:#b6d4fe; --flash:#dafbe1;
+  --glow:transparent;
 }
 :root[data-theme="monokai"]{
   color-scheme:dark;
@@ -59,27 +61,28 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:14px}
 #app{display:grid;grid-template-rows:auto 1fr;height:100vh;height:100dvh}
-header{display:flex;gap:18px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
-header .title{color:var(--amber);font-weight:700;letter-spacing:.5px}
+header{display:flex;gap:16px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header .title{color:var(--brand);font-weight:700;letter-spacing:.5px;text-shadow:0 0 12px var(--glow)}
 header .meta{color:var(--dim);font-size:12px}
 header .meta b{color:var(--cyan);font-weight:400}
+header .meta b.warn{color:var(--red)}
 main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
 #term{display:flex;flex-direction:column;min-height:0;padding:12px 16px 10px;cursor:text}
 #out{flex:1;overflow:auto;line-height:1.45;padding-bottom:6px}
 #out > div{margin:0 0 2px}
 .raw{white-space:pre}
 .echo{white-space:pre-wrap;word-break:break-all;margin-top:8px!important}
-.ps{color:var(--green)}
+.ps{color:var(--green);text-shadow:0 0 10px var(--glow)}
 .err{white-space:pre-wrap;color:var(--red)}
 .ok{white-space:pre-wrap;color:var(--green)}
 .dim{white-space:pre-wrap;color:var(--dim)}
 .narr{white-space:pre-wrap;color:var(--amber);border-left:2px solid var(--amber);padding:2px 0 2px 10px;margin:8px 0!important}
 .tip{white-space:pre-wrap;color:var(--violet);border-left:2px solid var(--violet);padding:2px 0 2px 10px;margin:6px 0!important}
 .mission{white-space:pre-wrap;color:var(--cyan);border:1px solid var(--missionbd);background:var(--missionbg);padding:8px 12px;margin:10px 0!important;border-radius:4px}
-.banner{white-space:pre;color:var(--amber)}
+.banner{white-space:pre;color:var(--brand);text-shadow:0 0 14px var(--glow)}
 .watch{border-left:2px solid var(--green);padding-left:10px}
 #inrow.watching{border-top-color:var(--green)}
-#inrow.watching .ps{color:var(--dim)}
+#inrow.watching .ps{color:var(--dim);text-shadow:none}
 .story{white-space:pre-wrap}
 #inrow{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:8px}
 #inrow .ps{white-space:nowrap}
@@ -90,13 +93,13 @@ aside{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;
 #mTitle{color:var(--cyan);font-weight:700;margin-bottom:6px}
 #mGoal{line-height:1.45}
 .bar{height:4px;background:var(--line);border-radius:2px;margin:10px 0 10px;overflow:hidden}
-.bar i{display:block;height:100%;background:var(--green);width:0;transition:width .4s}
+.bar i{display:block;height:100%;background:var(--brand);width:0;transition:width .4s;box-shadow:0 0 8px var(--glow)}
 button{font:inherit;font-size:12px;background:transparent;color:var(--amber);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer}
 button:hover{background:var(--hover)}
 ul{list-style:none;margin:0;padding:0}
 #clues li{padding:5px 0;border-bottom:1px dashed var(--line);font-size:12.5px;line-height:1.4}
 #clues li:last-child{border-bottom:0}
-#clues li::before{content:"◆ ";color:var(--amber)}
+#clues li::before{content:"\25C6 ";color:var(--amber)}
 #clues .empty{color:var(--dim)}
 #clues .empty::before{content:""}
 #manual li{padding:6px 4px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1.35}
@@ -140,11 +143,13 @@ ul{list-style:none;margin:0;padding:0}
 <body>
 <div id="app">
   <header>
-    <span class="title">THE MIDNIGHT LEDGER</span>
-    <span class="meta opt">context: <b>granite-prod</b></span>
+    <span class="title">MOON BASE: DARK SIDE</span>
+    <span class="meta opt">context: <b>helios-luna</b></span>
     <span class="meta">namespace: <b id="hNs">default</b></span>
-    <span class="meta">mission: <b id="hM">1/17</b></span>
-    <span class="meta">local time: <b id="hT">--:--</b></span>
+    <span class="meta">task: <b id="hM">1/18</b></span>
+    <span class="meta">CO&#8322;: <b id="hC">--</b></span>
+    <span class="meta">power: <b id="hP">--</b></span>
+    <span class="meta">station time: <b id="hT">--:--</b></span>
     <span class="right">
       <a id="home" href="index.html" title="Back to the case list">&#8962; Home</a>
       <select id="theme" aria-label="Colour theme" title="Colour theme">
@@ -159,7 +164,7 @@ ul{list-style:none;margin:0;padding:0}
   <main>
     <section id="term">
       <div id="out" aria-live="polite"></div>
-      <div id="inrow"><span class="ps">night-shift@granite:~$</span><input id="cmd" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="command"></div>
+      <div id="inrow"><span class="ps">crew@helios:~$</span><input id="cmd" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="command"></div>
       <div id="keys">
         <button type="button" data-k="tab" title="Autocomplete">Tab &#8677;</button>
         <button type="button" data-k="up" title="Previous command">&#8593;</button>
@@ -168,29 +173,29 @@ ul{list-style:none;margin:0;padding:0}
     </section>
     <aside>
       <div class="card">
-        <h3>Current mission</h3>
+        <h3>Current task</h3>
         <div id="mTitle"></div>
         <div id="mGoal"></div>
         <div class="bar"><i id="mBar"></i></div>
         <button id="hintBtn">Get a hint</button>
       </div>
       <div class="card">
-        <h3>Case file</h3>
+        <h3>Station log</h3>
         <ul id="clues"></ul>
       </div>
       <div class="card">
         <h3>Why did it stop?</h3>
         <div id="codes">
-          <div><b>Exit 0 · Completed</b><span>Finished its job normally. Nothing to fix.</span></div>
-          <div><b class="r">Exit 1 · Error</b><span>The app quit because of an error. Read logs --previous.</span></div>
-          <div><b class="r">Exit 137 · OOMKilled</b><span>Used more memory than its limit, so the system killed it.</span></div>
-          <div><b class="a">Killing · ScalingReplicaSet events</b><span>Stopped on purpose: scaled down, deleted or restarted. Check get events.</span></div>
+          <div><b>Exit 0 &#183; Completed</b><span>Finished its job normally. Nothing to fix.</span></div>
+          <div><b class="r">Exit 1 &#183; Error</b><span>The app quit because of an error. Read logs --previous.</span></div>
+          <div><b class="r">Exit 137 &#183; OOMKilled</b><span>Used more memory than its limit, so the system killed it.</span></div>
+          <div><b class="a">Killing &#183; ScalingReplicaSet events</b><span>Stopped on purpose: scaled down, deleted or restarted. Check get events, and the SOURCE column.</span></div>
         </div>
       </div>
       <div class="card">
         <h3>Field manual</h3>
         <ul id="manual"></ul>
-        <div class="small">Click a command to put it on the prompt. Tab autocompletes names. ↑/↓ recall history.</div>
+        <div class="small">Click a command to put it on the prompt. Tab autocompletes names. &#8593;/&#8595; recall history.</div>
       </div>
     </aside>
   </main>
@@ -204,8 +209,8 @@ const SEC = 1e3, MIN = 60e3, HOUR = 3600e3, DAY = 86400e3;
 /* The game uses the player's real computer clock. Every time in the game
    (ages, describe, events, logs, answers) is worked out from this one clock. */
 const now = () => Date.now();
-const CTX = 'granite-prod';
-const NODES = [['gt-prod-node-1','10.0.1.21'],['gt-prod-node-2','10.0.1.42'],['gt-prod-node-3','10.0.2.17']];
+const CTX = 'helios-luna';
+const NODES = [['helios-hab-01','10.40.1.11'],['helios-hab-02','10.40.1.12'],['helios-dock-03','10.40.2.13']];
 const CH_ALPHA = 'bcdfghjklmnpqrstvwxz2456789';
 const rnd = n => { let s=''; for (let i=0;i<n;i++) s += CH_ALPHA[Math.floor(Math.random()*CH_ALPHA.length)]; return s; };
 const hash = str => { let h=2166136261; for (const c of str){ h^=c.charCodeAt(0); h=Math.imul(h,16777619);} return h>>>0; };
@@ -250,14 +255,17 @@ function table(rows, indent=''){
 
 /* ---------- apps ---------- */
 const APPS = {
-  'ledger-api':{c:'ledger',img:'registry.granite.internal/bank/ledger-api:2.14.1',port:'8080/TCP',sa:'ledger-api',env:{LEDGER_MODE:'strict',JOURNAL_PATH:'/var/journal',SWEEP_ACCOUNT:'ACCT-0001'},journal:true,res:['500m','512Mi','1','1Gi'],log:'ledger'},
-  'payments-worker':{c:'worker',img:'registry.granite.internal/bank/payments-worker:3.8.0',sa:'payments',env:{QUEUE:'payments-high'},res:['250m','256Mi','500m','512Mi'],log:'payments'},
-  'web-frontend':{c:'web',img:'registry.granite.internal/bank/web-frontend:4.7.2',port:'3000/TCP',sa:'default',env:{},res:['100m','128Mi','250m','256Mi'],log:'web'},
-  'fraud-detector':{c:'scorer',img:'registry.granite.internal/risk/fraud-detector:1.9.4',port:'9000/TCP',sa:'fraud',env:{MODEL:'gbm-2026-08'},res:['500m','1Gi','1','2Gi'],log:'fraud'},
-  'rounding-helper':{c:'helper',img:'registry.granite.internal/dreyes-sandbox/rounding-helper:0.3',sa:'svc-dreyes-batch',env:{LEDGER_STREAM:'bank-prod/ledger-api',SWEEP_ACCOUNT:'ACCT-9981',SWEEP_INTERVAL:'5s'},res:null,log:'shaver'},
-  'ledger-auditor':{c:'auditor',img:'registry.granite.internal/bank/ledger-auditor:1.4.2',port:'8090/TCP',sa:'ledger-auditor',env:{APPROVED_SWEEPS:'ACCT-0001',DEEP_SCAN:'weekly'},res:['100m','128Mi','250m','256Mi'],log:'auditor'},
-  'nightly-statements':{c:'statements',img:'registry.granite.internal/bank/statements-batch:4.0.2',sa:'batch',env:{RUN_MODE:'nightly'},res:['500m','512Mi','1','1Gi'],log:'statements'},
-  'ledger-db':{c:'postgres',img:'registry.granite.internal/bank/ledger-db:16.4',port:'5432/TCP',sa:'ledger-db',env:{POSTGRES_DB:'ledger',PGDATA:'/var/lib/postgresql/data'},res:['1','4Gi','2','8Gi'],log:'db'},
+  'o2-scrubber':{c:'scrubber',img:'registry.helios.internal/life-support/o2-scrubber:3.2.0',port:'8080/TCP',sa:'o2-scrubber',env:{AMINE_BED_MIN_C:'18',THERMAL_LOOP:'thermal-loop.station-ops:9400',CAL_PATH:'/var/calibration'},cal:true,res:['500m','512Mi','1','1Gi'],log:'scrubber'},
+  'water-recycler':{c:'recycler',img:'registry.helios.internal/life-support/water-recycler:2.8.1',port:'8080/TCP',sa:'water-recycler',env:{LOOP_MODE:'closed'},res:['250m','256Mi','500m','512Mi'],log:'water'},
+  'hydroponics':{c:'grow',img:'registry.helios.internal/life-support/hydroponics:1.6.3',sa:'hydroponics',env:{TRAY_COUNT:'18',LIGHT_CYCLE:'18h/6h'},res:['250m','256Mi','500m','512Mi'],log:'grow'},
+  'air-mixer':{c:'mixer',img:'registry.helios.internal/life-support/air-mixer:4.1.0',port:'9200/TCP',sa:'air-mixer',env:{MIX_TARGET_O2:'21.0',HISTORY_PATH:'/var/lib/air-mixer/data'},res:['500m','1Gi','1','2Gi'],log:'mixer'},
+  'atmo-census':{c:'census',img:'registry.helios.internal/life-support/atmo-census:2.0.1',sa:'batch',env:{RUN_MODE:'daily'},res:['250m','256Mi','500m','512Mi'],log:'census'},
+  'power-governor':{c:'governor',img:'registry.helios.internal/station/power-governor:5.0.4',port:'9100/TCP',sa:'power-governor',env:{SOLAR_MIN_PCT:'35',PRIORITY_LABEL:'helios.io/critical',PROFILE:'auto'},res:['100m','128Mi','250m','256Mi'],log:'gov'},
+  'thermal-loop':{c:'thermal',img:'registry.helios.internal/station/thermal-loop:2.9.0',port:'9400/TCP',sa:'thermal-loop',env:{SETPOINT_C:'21',SERVES:'life-support/o2-scrubber'},res:['500m','512Mi','1','1Gi'],log:'thermal'},
+  'airlock-ctl':{c:'airlock',img:'registry.helios.internal/station/airlock-ctl:1.2.7',port:'8443/TCP',sa:'airlock-ctl',env:{DOORS:'A,B,dock'},res:['100m','128Mi','250m','256Mi'],log:'airlock'},
+  'comms-uplink':{c:'uplink',img:'registry.helios.internal/comms/comms-uplink:6.3.1',port:'9600/TCP',sa:'comms-uplink',env:{DISH:'HGA-2',TARGET:'earth-dsn-43'},res:['500m','512Mi','1','1Gi'],log:'uplink'},
+  'telemetry-buffer':{c:'buffer',img:'registry.helios.internal/comms/telemetry-buffer:3.1.0',port:'9610/TCP',sa:'telemetry-buffer',env:{SPOOL:'/var/spool/telemetry'},res:['100m','256Mi','250m','512Mi'],log:'buffer'},
+  'spectro-analyzer':{c:'analyzer',img:'registry.helios.internal/science/spectro-analyzer:0.9',sa:'svc-science-batch',env:{SAMPLE_SET:'regolith-core-14',PASSES:'continuous'},res:['1','2Gi','2','4Gi'],log:'science'},
   'coredns':{c:'coredns',img:'registry.k8s.io/coredns/coredns:v1.11.3',port:'53/UDP',sa:'coredns',env:{},res:['100m','70Mi','','170Mi'],log:'dns'},
   'metrics-server':{c:'metrics-server',img:'registry.k8s.io/metrics-server/metrics-server:v0.7.2',port:'10250/TCP',sa:'metrics-server',env:{},res:['100m','200Mi','',''],log:'generic'},
   'prometheus-server':{c:'prometheus',img:'quay.io/prometheus/prometheus:v3.5.0',port:'9090/TCP',sa:'prometheus',env:{},res:['500m','2Gi','',''],log:'prom'},
@@ -265,58 +273,85 @@ const APPS = {
   'alertmanager':{c:'alertmanager',img:'quay.io/prometheus/alertmanager:v0.28.1',port:'9093/TCP',sa:'alertmanager',env:{},res:['50m','64Mi','',''],log:'prom'},
 };
 const SVCS = {
-  'default':[['kubernetes','ClusterIP','10.100.0.1','<none>','443/TCP',212*DAY]],
-  'kube-system':[['kube-dns','ClusterIP','10.100.0.10','<none>','53/UDP,53/TCP',212*DAY],['metrics-server','ClusterIP','10.100.118.4','<none>','443/TCP',212*DAY]],
+  'default':[['kubernetes','ClusterIP','10.100.0.1','<none>','443/TCP',318*DAY]],
+  'kube-system':[['kube-dns','ClusterIP','10.100.0.10','<none>','53/UDP,53/TCP',318*DAY],['metrics-server','ClusterIP','10.100.118.4','<none>','443/TCP',318*DAY]],
   'monitoring':[['prometheus-server','ClusterIP','10.100.61.200','<none>','9090/TCP',90*DAY],['grafana','ClusterIP','10.100.61.201','<none>','80/TCP',90*DAY],['alertmanager','ClusterIP','10.100.61.202','<none>','9093/TCP',90*DAY]],
-  'bank-prod':[['ledger-api','ClusterIP','10.100.42.17','<none>','8080/TCP',140*DAY],['ledger-db','ClusterIP','None','<none>','5432/TCP',140*DAY],['web-frontend','LoadBalancer','10.100.42.30','a3f9e1.elb.granite.internal','443:31443/TCP',140*DAY],['fraud-detector','ClusterIP','10.100.42.55','<none>','9000/TCP',61*DAY]],
-  'bank-staging':[['ledger-api','ClusterIP','10.100.77.17','<none>','8080/TCP',30*DAY],['web-frontend','ClusterIP','10.100.77.30','<none>','3000/TCP',30*DAY]],
-  'tmp-reconcile':[],
+  'life-support':[['o2-scrubber','ClusterIP','10.100.12.10','<none>','8080/TCP',318*DAY],['air-mixer','ClusterIP','None','<none>','9200/TCP',318*DAY],['water-recycler','ClusterIP','10.100.12.22','<none>','8080/TCP',318*DAY]],
+  'station-ops':[['power-governor','ClusterIP','10.100.30.5','<none>','9100/TCP',318*DAY],['thermal-loop','ClusterIP','10.100.30.9','<none>','9400/TCP',318*DAY],['airlock-ctl','ClusterIP','10.100.30.14','<none>','8443/TCP',318*DAY]],
+  'comms':[['comms-uplink','ClusterIP','10.100.44.2','<none>','9600/TCP',318*DAY],['telemetry-buffer','ClusterIP','10.100.44.7','<none>','9610/TCP',318*DAY]],
+  'science-lab':[['spectro-analyzer','ClusterIP','10.100.70.3','<none>','8080/TCP',26*DAY]],
 };
 
 /* ---------- state ---------- */
+/* Power budget. During lunar night the arrays deliver AVAIL; BASE is everything
+   that is never shed (hab lighting, comms buffer, kube itself). The governor
+   refuses to start a load it cannot pay for. */
+const LOAD = {'thermal-loop':22,'comms-uplink':18,'spectro-analyzer':12};
+const AVAIL = 65, BASE = 25;
+function powerUsed(){ let u = BASE; for (const d of S.deps) if (LOAD[d.name]) u += LOAD[d.name]*d.replicas; return u; }
+const powerFree = () => AVAIL - powerUsed();
+function scrubberOk(){ return S.pods.some(p=>p.ns==='life-support' && p.dep==='o2-scrubber' && !p.term && !p.crash && pv(p).ready==='1/1'); }
+/* Cabin CO2 climbs while the scrubber is down and falls once it is back. */
+function co2(){
+  const t = now(), end = S.flags.breathAt || t;
+  /* Rises fast, then flattens: the passive hydroxide canisters soak up the rest,
+     so a slow player never sails past the hab limit while nothing is on fire. */
+  const mins = (end - S.crashStart)/MIN;
+  let ppm = 412 + 570*(1 - Math.exp(-mins/85));
+  if (S.flags.breathAt) ppm -= (t - S.flags.breathAt)/MIN*9.0;
+  return Math.max(412, Math.min(1600, Math.round(ppm)));
+}
 let S, T0;
 function newState(){
   T0 = now();
   const st = {
     ns:'default', chapter:0, hintIdx:0, hints:0, cmds:0, wrong:0,
     flags:{}, clues:[], learned:new Set(), events:[], history:[], hpos:0, done:false,
-    namespaces:[['default',212*DAY],['kube-system',212*DAY],['monitoring',90*DAY],['bank-prod',140*DAY],['bank-staging',30*DAY],['tmp-reconcile',3*DAY+4*HOUR]].map(([name,a])=>({name,created:now()-a})),
+    namespaces:[['default',318*DAY],['kube-system',318*DAY],['monitoring',90*DAY],['life-support',318*DAY],['station-ops',318*DAY],['comms',318*DAY],['science-lab',26*DAY]].map(([name,a])=>({name,created:now()-a})),
     deps:[], pods:[],
   };
   const D = (ns,name,replicas,age,extra={}) => st.deps.push(Object.assign({ns,name,replicas,created:now()-age,hash:hex(ns+name,9).replace(/[aeiou01]/g,'7').slice(0,9),old:[],ann:{}},extra));
-  D('kube-system','coredns',2,212*DAY); D('kube-system','metrics-server',1,212*DAY);
+  D('kube-system','coredns',2,318*DAY); D('kube-system','metrics-server',1,318*DAY);
   D('monitoring','prometheus-server',1,90*DAY); D('monitoring','grafana',1,90*DAY); D('monitoring','alertmanager',1,90*DAY);
-  D('bank-prod','ledger-api',1,140*DAY,{ann:{'last-migrated-by':'d.reyes','migration-ticket':'DBA-2291'}});
-  D('bank-prod','payments-worker',3,140*DAY); D('bank-prod','web-frontend',2,140*DAY); D('bank-prod','fraud-detector',1,61*DAY); D('bank-prod','ledger-auditor',0,140*DAY);
-  D('bank-prod','ledger-db',1,140*DAY,{sts:true,hash:'ledger-db-'+hex('ledger-db',10)});
-  D('bank-staging','ledger-api',1,30*DAY,{img:'registry.granite.internal/bank/ledger-api:2.15.0-rc1'});
-  D('bank-staging','payments-worker',1,30*DAY); D('bank-staging','web-frontend',1,30*DAY);
-  D('tmp-reconcile','rounding-helper',1,3*DAY+4*HOUR,{ann:{'requested-by':'m.okafor','note':'temporary reconciliation fix'}});
+  D('life-support','o2-scrubber',1,318*DAY,{ann:{'last-calibrated-by':'crew-b','calibration-ticket':'HL-3120'}});
+  D('life-support','water-recycler',2,318*DAY); D('life-support','hydroponics',2,318*DAY);
+  D('life-support','air-mixer',1,318*DAY,{sts:true,hash:'air-mixer-'+hex('air-mixer',10)});
+  D('station-ops','power-governor',1,318*DAY,{ann:{'helios.io/critical':'true'}});
+  D('station-ops','thermal-loop',0,318*DAY,{ann:{'serves':'life-support/o2-scrubber'}});
+  D('station-ops','airlock-ctl',2,318*DAY,{ann:{'helios.io/critical':'true'}});
+  D('comms','comms-uplink',0,318*DAY);
+  D('comms','telemetry-buffer',1,318*DAY);
+  D('science-lab','spectro-analyzer',3,26*DAY,{ann:{'helios.io/critical':'true','copied-from':'station-ops/airlock-ctl','experiment-window':'sol-292 to sol-340'}});
   S = st;
   for (const d of st.deps){
     for (let i=0;i<d.replicas;i++){
-      let age;
-      if (d.name==='rounding-helper') age = 3*DAY+4*HOUR - 20*SEC;
-      else if (d.ns==='bank-prod' && d.name==='ledger-api') age = 3*DAY+2*HOUR;
-      else age = Math.min(now()-d.created, (4+Math.floor(Math.random()*4))*DAY + Math.floor(Math.random()*20)*HOUR);
+      const age = d.ns==='life-support' && d.name==='o2-scrubber'
+        ? 5*DAY + 3*HOUR
+        : Math.min(now()-d.created, (4+Math.floor(Math.random()*4))*DAY + Math.floor(Math.random()*20)*HOUR);
       const p = mkPod(d, now()-age, true);
-      if (d.ns==='bank-prod' && d.name==='ledger-api'){ p.crash=true; p.original=true; }
+      if (d.ns==='life-support' && d.name==='o2-scrubber'){ p.crash=true; p.original=true; }
     }
   }
-  st.crashStart = T0 - 134*MIN;
-  st.auditorStop = T0 - 38*MIN;
-  st.shaverStart = st.pods.find(p=>p.dep==='rounding-helper').created + 2500;
-  const pw = st.pods.filter(p=>p.ns==='bank-prod'&&p.dep==='payments-worker')[1];
-  pw.created = Math.min(pw.created, T0 - 6*DAY - 3*HOUR);
-  st.oomEnd = T0 - (3*DAY + 9*HOUR + 20*MIN);
-  pw.oom = {start: st.oomEnd - 41*MIN, end: st.oomEnd}; pw.restarts0 = 2;
-  const jc = T0 - 5*HOUR - 12*MIN, job = 'nightly-statements-29311840';
-  st.pods.push({ns:'bank-prod',dep:'nightly-statements',job,hash:'',name:`${job}-${rnd(5)}`,created:jc,node:NODES[2][0],nodeIp:NODES[2][1],ip:'10.244.3.77',crash:false,original:false,term:null,restarts0:0,completed:{start:jc+2500,end:jc+2500+4*MIN+12*SEC}});
-  const ah = dep('bank-prod','ledger-auditor').hash, apn = `ledger-auditor-${ah}-${rnd(5)}`;
-  st.events.push(
-    {ns:'bank-prod',type:'Normal',reason:'ScalingReplicaSet',obj:'deployment/ledger-auditor',msg:`Scaled down replica set ledger-auditor-${ah} from 1 to 0`,src:'deployment-controller',t:st.auditorStop,keep:true},
-    {ns:'bank-prod',type:'Normal',reason:'SuccessfulDelete',obj:`replicaset/ledger-auditor-${ah}`,msg:`Deleted pod: ${apn}`,src:'replicaset-controller',t:st.auditorStop+300,keep:true},
-    {ns:'bank-prod',type:'Normal',reason:'Killing',obj:`pod/${apn}`,msg:'Stopping container auditor',src:'kubelet',t:st.auditorStop+600,keep:true});
+  st.crashStart = T0 - 97*MIN;        /* scrubber started crash-looping */
+  st.shedAt     = T0 - 118*MIN;       /* the governor shed thermal-loop and the uplink */
+  st.nightAt    = st.shedAt - 4*MIN;  /* solar input fell below minimum */
+  /* One hydroponics pod ran out of memory two days ago. Unrelated to tonight. */
+  const hp = st.pods.filter(p=>p.ns==='life-support' && p.dep==='hydroponics')[1];
+  hp.created = Math.min(hp.created, T0 - 6*DAY - 3*HOUR);
+  st.oomEnd = T0 - (2*DAY + 6*HOUR + 40*MIN);
+  hp.oom = {start: st.oomEnd - 52*MIN, end: st.oomEnd}; hp.restarts0 = 2;
+  /* Yesterday's atmosphere census finished normally and exited 0. */
+  const jc = T0 - 6*HOUR - 20*MIN, job = 'atmo-census-29311840';
+  st.pods.push({ns:'life-support',dep:'atmo-census',job,hash:'',name:`${job}-${rnd(5)}`,created:jc,node:NODES[1][0],nodeIp:NODES[1][1],ip:'10.244.2.61',crash:false,original:false,term:null,restarts0:0,completed:{start:jc+2500,end:jc+2500+3*MIN+8*SEC}});
+  /* The load-shed events the governor left behind. */
+  for (const [ns,name] of [['station-ops','thermal-loop'],['comms','comms-uplink']]){
+    const d = st.deps.find(x=>x.ns===ns && x.name===name), pn = `${name}-${d.hash}-${rnd(5)}`;
+    st.events.push(
+      {ns,type:'Warning',reason:'LoadShed',obj:`deployment/${name}`,msg:`solar input 11% (min 35%): shedding ${name}, no ${'helios.io/critical'} label`,src:'power-governor',t:st.shedAt,keep:true},
+      {ns,type:'Normal',reason:'ScalingReplicaSet',obj:`deployment/${name}`,msg:`Scaled down replica set ${name}-${d.hash} from 1 to 0`,src:'deployment-controller',t:st.shedAt+400,keep:true},
+      {ns,type:'Normal',reason:'SuccessfulDelete',obj:`replicaset/${name}-${d.hash}`,msg:`Deleted pod: ${pn}`,src:'replicaset-controller',t:st.shedAt+700,keep:true},
+      {ns,type:'Normal',reason:'Killing',obj:`pod/${pn}`,msg:`Stopping container ${APPS[name].c}`,src:'kubelet',t:st.shedAt+900,keep:true});
+  }
 }
 function mkPod(d, created, silent){
   const node = NODES[Math.floor(Math.random()*NODES.length)];
@@ -324,7 +359,7 @@ function mkPod(d, created, silent){
   if (d.sts){ let i=0; while (S.pods.some(x=>x.ns===d.ns&&x.name===`${d.name}-${i}`)) i++; pname = `${d.name}-${i}`; }
   const p = {ns:d.ns, dep:d.name, sts:!!d.sts, hash:d.hash, name:pname, created, node:node[0], nodeIp:node[1],
     ip:`10.244.${1+Math.floor(Math.random()*3)}.${2+Math.floor(Math.random()*250)}`, crash:false, original:false, term:null, restarts0:0};
-  p.crash = d.ns==='bank-prod' && d.name==='ledger-api' && shaverActive();
+  p.crash = d.ns==='life-support' && d.name==='o2-scrubber' && thermalDown();
   S.pods.push(p);
   if (!silent){
     const c = APPS[d.name].c;
@@ -367,7 +402,8 @@ function selMatch(p, reqs){
     if (r.op==='='||r.op==='in') return has && r.v.includes(val);
     return !has || !r.v.includes(val); });
 }
-const shaverActive = () => { const d = S && S.deps.find(x=>x.name==='rounding-helper'); return !!(d && d.replicas>0); };
+/* The scrubber can only hold its amine beds at temperature while the loop runs. */
+const thermalDown = () => { const d = S && S.deps.find(x=>x.name==='thermal-loop'); return !(d && d.replicas>0); };
 function reconcile(){
   const t = now();
   S.pods = S.pods.filter(p => !(p.term && t > p.term + 3500));
@@ -384,7 +420,16 @@ function terminate(p){
   if (p.term) return; p.term = now();
   ev(p.ns,'Normal','Killing',`pod/${p.name}`,`Stopping container ${APPS[p.dep].c}`,'kubelet');
 }
-setInterval(()=>{ if (S) reconcile(); const t=document.getElementById('hT'); if (t) t.textContent=clock(now()); }, 500);
+function gauges(){
+  if (S){
+    if (!S.flags.breathAt && scrubberOk()) S.flags.breathAt = now();
+    const c=document.getElementById('hC'), pw=document.getElementById('hP');
+    if (c){ const v=co2(); c.textContent = v+' ppm'; c.className = v>800 ? 'warn' : ''; }
+    if (pw){ const f=powerFree(); pw.textContent = f+' kW free'; pw.className = f<=4 ? 'warn' : ''; }
+  }
+  const t=document.getElementById('hT'); if (t) t.textContent=clock(now());
+}
+setInterval(()=>{ if (S) reconcile(); gauges(); }, 500);
 
 /* ---------- pod status ---------- */
 function pv(p){
@@ -418,7 +463,7 @@ const err = t => blk(t,'err');
 const narr = t => blk(t,'narr');
 const tip = t => blk(t,'tip');
 const dim = t => blk(t,'dim');
-function echo(cmd){ const d=document.createElement('div'); d.className='echo'; const s=document.createElement('span'); s.className='ps'; s.textContent='night-shift@granite:~$ '; d.appendChild(s); d.appendChild(document.createTextNode(cmd)); out.appendChild(d); }
+function echo(cmd){ const d=document.createElement('div'); d.className='echo'; const s=document.createElement('span'); s.className='ps'; s.textContent='crew@helios:~$ '; d.appendChild(s); d.appendChild(document.createTextNode(cmd)); out.appendChild(d); }
 
 /* ---------- field manual ---------- */
 const MANUAL = [
@@ -467,111 +512,124 @@ function renderManual(){
 
 /* ---------- chapters ---------- */
 const CH = [
- {id:'ns', t:'Clock In', g:'List all the namespaces in the cluster.',
-  h:['Namespaces are like folders that group related resources. kubectl can list them just like it lists pods.','The resource is called "namespaces" (short name: ns).','kubectl get namespaces'],
+ {id:'ns', t:'Wake Up', g:'List all the namespaces on the station cluster.',
+  h:['Namespaces are like compartments that group related resources. kubectl can list them just like it lists pods.','The resource is called "namespaces" (short name: ns).','kubectl get namespaces'],
   ok:e=>e.verb==='get'&&e.kind==='namespaces',
-  done:()=>{ narr(`Six namespaces. bank-prod and bank-staging you know. kube-system and monitoring belong to the Platform team.\nBut tmp-reconcile, created about 3 days ago? Nobody mentioned that at standup.`); clue('Unfamiliar namespace tmp-reconcile appeared ~3 days ago.'); }},
- {id:'pods', t:'Walk the Floor', g:'List the pods running in the bank-prod namespace.',
-  h:['kubectl only looks in your current namespace, which starts as "default". You need to point it at bank-prod.','The -n (or --namespace) flag picks the namespace for a single command.','kubectl get pods -n bank-prod'],
-  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&(e.all||e.ns==='bank-prod'),
-  nudge:e=>(e.verb==='get'&&e.kind==='pods'&&!e.all&&e.ns!=='bank-prod')?`You looked in the "${e.ns}" namespace. Production lives in bank-prod: add -n bank-prod.`:null,
-  done:()=>{ narr(`There it is. ledger-api is in CrashLoopBackOff: it starts, dies, and Kubernetes waits a bit longer before each retry. READY 0/1 means no traffic is reaching it, and the RESTARTS count keeps climbing.\n\nDon't worry about nightly-statements showing Completed. That's a scheduled job that did its work and exited normally. Completed is a happy ending, not a failure.
+  done:()=>{ narr(`Seven compartments. life-support, station-ops and comms have been here since commissioning, 318 sols ago.\nscience-lab is 26 sols old: a visiting payload, bolted on for one experiment window.\nEverything on this station shares one power budget, including that.`); clue('science-lab (26 sols old) shares the station power budget.'); }},
+ {id:'pods', t:'Walk the Deck', g:'List the pods running in the life-support namespace.',
+  h:['kubectl only looks in your current namespace, which starts as "default". You need to point it at life-support.','The -n (or --namespace) flag picks the namespace for a single command.','kubectl get pods -n life-support'],
+  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&(e.all||e.ns==='life-support'),
+  nudge:e=>(e.verb==='get'&&e.kind==='pods'&&!e.all&&e.ns!=='life-support')?`You looked in the "${e.ns}" namespace. The scrubber lives in life-support: add -n life-support.`:null,
+  done:()=>{ narr(`There it is. o2-scrubber is in CrashLoopBackOff: it starts, dies, and Kubernetes waits a little longer before each retry. READY 0/1 means it is scrubbing nothing, and the RESTARTS count keeps climbing. That is why the CO2 reading in the header keeps going up.
 
-And ledger-db-0 has no random suffix because it's run by a StatefulSet (kubectl get sts -n bank-prod). StatefulSet pods keep the same name and the same disk every time they restart. That's why databases use them.`); tip(`Tip: tired of typing -n? Make bank-prod your default namespace:\n  kubectl config set-context --current --namespace=bank-prod`); clue('ledger-api (bank-prod) is stuck in CrashLoopBackOff.'); }},
- {id:'describe', t:'Question the Witness', g:'Describe the crashing ledger-api pod to see its full details and events.',
-  h:['describe shows everything about a resource: image, state, exit code, volumes, recent events.','Pod names end with a random suffix. Type the start of the name and press Tab to autocomplete it.','kubectl describe pod -n bank-prod ledger-api-<Tab>'],
-  ok:e=>e.verb==='describe'&&e.kind==='pods'&&e.deploy==='ledger-api'&&e.ns==='bank-prod',
-  nudge:e=>(e.verb==='describe'&&e.deploy==='ledger-api'&&e.ns==='bank-staging')?'That is the staging copy, and it is healthy. The broken one is in bank-prod.':null,
-  done:()=>{ narr(`Key details:\n  • Last State: Terminated, Reason: Error, Exit Code 1. The app quit because of an error. It was not stopped by a person, and it was not killed for using too much memory (that would say OOMKilled). The "Why did it stop?" card in the sidebar lists the common reasons.\n  • The "journal" volume is an emptyDir. It survives container restarts, but is wiped when the pod itself is replaced.\n  • Annotation last-migrated-by: d.reyes. Dana from the DBA team migrated this 3 days ago...`); clue('ledger-api exits with code 1 (error); its journal lives in an emptyDir volume.'); clue('ledger-api annotation: last-migrated-by: d.reyes (3 days ago).'); }},
- {id:'version', q:true, t:'Version Check', g:'The Platform team always asks first: "What version is it running?" Find the image tag of the ledger-api pod in bank-prod, then answer it, e.g.  answer 1.2.3',
+Don't worry about atmo-census showing Completed. That is yesterday's scheduled atmosphere survey, which did its job and exited normally. Completed is a happy ending, not a failure.
+
+And air-mixer-0 has no random suffix because it is run by a StatefulSet (kubectl get sts -n life-support). StatefulSet pods keep the same name and the same disk every time they restart, which is why anything holding data uses one.`); tip(`Tip: tired of typing -n? Make life-support your default namespace:\n  kubectl config set-context --current --namespace=life-support`); clue('o2-scrubber (life-support) is stuck in CrashLoopBackOff.'); }},
+ {id:'describe', t:'Check the Patient', g:'Describe the crashing o2-scrubber pod to see its full details and events.',
+  h:['describe shows everything about a resource: image, state, exit code, environment, volumes, recent events.','Pod names end with a random suffix. Type the start of the name and press Tab to autocomplete it.','kubectl describe pod -n life-support o2-scrubber-<Tab>'],
+  ok:e=>e.verb==='describe'&&e.kind==='pods'&&e.deploy==='o2-scrubber'&&e.ns==='life-support',
+  done:()=>{ narr(`Key details:\n  • Last State: Terminated, Reason: Error, Exit Code 1. The app quit because of an error. Nobody stopped it, and it was not killed for using too much memory (that would say OOMKilled). The "Why did it stop?" card in the sidebar lists the usual reasons.\n  • Environment: THERMAL_LOOP: thermal-loop.station-ops:9400. The scrubber depends on something in another namespace.\n  • The "calibration" volume is an emptyDir. It survives container restarts, but it is wiped when the pod itself is replaced. Remember that for later.`); clue('o2-scrubber exits with code 1 (error); its calibration lives in an emptyDir volume.'); clue('o2-scrubber depends on thermal-loop.station-ops:9400.'); }},
+ {id:'version', q:true, t:'Version Check', g:'Mission Control always asks first: "What version is it running?" Find the image tag of the o2-scrubber pod, then answer it, e.g.  answer 1.2.3',
   h:['The version is the tag at the end of the Image: line in describe pod: everything after the last colon.',
-     'describe prints a lot. Pipe it through grep to keep only the lines you want:\n     kubectl describe pod -n bank-prod ledger-api-<Tab> | grep -i image:',
-     'Or see every version in the namespace at once:\n     kubectl describe pods -n bank-prod | grep -i image: | sort -u\n     ledger-api is on 2.14.1. Type: answer 2.14.1'],
-  ok:e=>e.verb==='answer'&&/2\.14\.1(?![\d.])/.test(e.text),
+     'describe prints a lot. Pipe it through grep to keep only the lines you want:\n     kubectl describe pod -n life-support o2-scrubber-<Tab> | grep -i image:',
+     'Or see every version in the namespace at once:\n     kubectl describe pods -n life-support | grep -i image: | sort -u\n     o2-scrubber is on 3.2.0. Type: answer 3.2.0'],
+  ok:e=>e.verb==='answer'&&/3\.2\.0(?![\d.])/.test(e.text),
   nudge:e=>{ if (e.verb!=='answer') return null;
-    if (/2\.15/.test(e.text)) return "2.15.0-rc1 is the release candidate running in bank-staging. Which version is the ledger-api in bank-prod on?";
-    return 'Not that one. Look at the Image: line of the ledger-api pod in bank-prod; the version is the part after the last colon.'; },
-  done:()=>{ narr(`Right: bank-prod runs ledger-api 2.14.1 (staging is testing 2.15.0-rc1). That's the first line of any handoff.`);
+    if (/2\.9|4\.1|2\.8|1\.6/.test(e.text)) return 'That is one of the other life-support images. Look at the Image: line of the o2-scrubber pod itself.';
+    return 'Not that one. Look at the Image: line of the o2-scrubber pod; the version is the part after the last colon.'; },
+  done:()=>{ narr(`Right: o2-scrubber 3.2.0. That is the first line of any report you send home.`);
     if (S.flags.usedPipe) tip(`Nice pipe work. | grep -i image: keeps only the lines that match (-i ignores upper/lower case), and | sort -u sorts them and removes duplicates. You can add | grep to any command that prints a lot.`);
     else tip(`Shortcut for next time: pipe describe through grep to keep only the lines you want:
-  kubectl describe pods -n bank-prod | grep -i image: | sort -u
+  kubectl describe pods -n life-support | grep -i image: | sort -u
 grep -i keeps the matching lines (ignoring upper/lower case), and sort -u removes duplicates.`);
-    clue('bank-prod ledger-api runs version 2.14.1.'); }},
- {id:'logs', t:'Last Words', g:"Read the logs from ledger-api's previous (crashed) container.",
-  h:['kubectl logs <pod> prints whatever the container wrote to its output.','The container that crashed is the previous instance. There is a flag for that: --previous (or -p).','kubectl logs -n bank-prod ledger-api-<Tab> --previous'],
-  ok:e=>e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.prev,
-  nudge:e=>(e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&!e.prev)?'That is the current attempt, which has barely started. The crash happened in the previous container: add --previous.':null,
-  done:()=>{ narr(`So that's why it crashes. Thousands of rounding remainders were credited to ACCT-9981, an account that is not on the approved list. The ledger caught a writer it didn't expect (rounding-helper, from tmp-reconcile) and now refuses to serve a dirty journal.\n\nSomebody is shaving fractions of a cent off every transaction.`); clue('Fractional cents are being routed to ACCT-9981.'); clue('Unexpected writer on the ledger: rounding-helper (tmp-reconcile).'); }},
- {id:'timeline', q:true, t:'When Did It Start?', g:'The pager only just went off, but how long has ledger-api really been crashing? Find out, then report it with the answer command, e.g.  answer 45m  (how long ago) or  answer 03:30  (clock time).',
-  h:['An alert going off is not when the problem started. Kubernetes events record when a problem was FIRST seen and how many times it has happened since. (The timestamps in logs --previous only show the LATEST crash.)',
-     'Two places show it: the Events section at the bottom of kubectl describe pod (the Age column says "x… over …"), or kubectl get events -n bank-prod -o wide (FIRST SEEN column, far right).',
+    clue('life-support runs o2-scrubber 3.2.0.'); }},
+ {id:'logs', t:'Last Words', g:"Read the logs from o2-scrubber's previous (crashed) container.",
+  h:['kubectl logs <pod> prints whatever the container wrote to its output.','The container that crashed is the previous instance. There is a flag for that: --previous (or -p).','kubectl logs -n life-support o2-scrubber-<Tab> --previous'],
+  ok:e=>e.verb==='logs'&&e.deploy==='o2-scrubber'&&e.ns==='life-support'&&e.prev,
+  nudge:e=>(e.verb==='logs'&&e.deploy==='o2-scrubber'&&e.ns==='life-support'&&!e.prev)?'That is the current attempt, which has barely started. The crash happened in the previous container: add --previous.':null,
+  done:()=>{ narr(`So that is why it dies. The amine beds are 6 degrees below the minimum it will run at, and every attempt to reach thermal-loop.station-ops:9400 is refused. The scrubber is not broken. It is cold, and it is refusing to cycle rather than damage the beds.\n\nThe fault is not in life-support at all. It is in station-ops.`); clue('o2-scrubber: amine beds below minimum temperature; thermal-loop refuses connection.'); }},
+ {id:'timeline', q:true, t:'When Did It Start?', g:'The alarm only just woke you, but how long has o2-scrubber really been crash-looping? Find out, then report it with the answer command, e.g.  answer 45m  (how long ago) or  answer 03:30  (clock time).',
+  h:['An alarm going off is not when the problem started. Kubernetes events record when a problem was FIRST seen and how many times it has happened since. (The timestamps in logs --previous only show the LATEST crash.)',
+     'Two places show it: the Events section at the bottom of kubectl describe pod (the Age column says "x… over …"), or kubectl get events -n life-support -o wide (FIRST SEEN column, far right).',
      ()=>`The BackOff warning was first seen ${fmtAge(now()-S.crashStart)} ago, at ${clock(S.crashStart)}. Type: answer ${fmtAge(now()-S.crashStart)}`],
   ok:e=>{ if (e.verb!=='answer') return false; const r=judgeTime(e.text,S.crashStart); return !!(r&&r.ok); },
   nudge:e=>{ if (e.verb!=='answer') return null; const r=judgeTime(e.text,S.crashStart);
-    if (!r) return 'Answer with how long ago (e.g. answer 45m, answer 1h30m) or a clock time (e.g. answer 03:30). The header shows the current local time.';
-    return `Not quite: that's about ${fmtAge(r.off*MIN)} away from when it started. Look for when the BackOff warning was FIRST seen (kubectl get events -n bank-prod -o wide).`; },
-  done:()=>{ narr(`Right. ledger-api started crash-looping at ${clock(S.crashStart)}, about ${fmtAge(now()-S.crashStart)} ago, long before the pager went off. That start time is the first thing the Platform team will ask for.\n\nHow to find it:\n  • describe pod → Events → "(x${Math.floor((now()-S.crashStart)/20000)} over ${fmtAge(now()-S.crashStart)})"\n  • get events -o wide → FIRST SEEN and COUNT\nEvents only last about an hour, unless they keep repeating (like this one).`); clue(`ledger-api began crash-looping at ${clock(S.crashStart)}.`); }},
- {id:'tmp', t:'Follow the Money', g:'List the pods in the tmp-reconcile namespace.',
-  h:['Same command you used for bank-prod, different namespace.','kubectl get pods -n tmp-reconcile'],
-  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&(e.all||e.ns==='tmp-reconcile'),
-  done:()=>narr(`One pod, up for 3 days, zero restarts. Whatever it is, it is working exactly as intended. Let's hear what it has to say.`)},
- {id:'shaverlogs', t:'Interrogation', g:'Read the logs of the rounding-helper pod.',
-  h:['Same logs command as before, just a different pod and namespace.','Tab completion works here too.','kubectl logs rounding-helper-<Tab> -n tmp-reconcile'],
-  ok:e=>e.verb==='logs'&&e.deploy==='rounding-helper',
-  done:()=>{ narr(`Still sweeping, every few seconds, and the total keeps growing. Read the auth line and the sweep target carefully.\n\nAnd check the timestamp on the very first line: ${fmtShort(S.shaverStart)}. The skimming started 3 days ago. Tonight's crash is only when the ledger finally noticed.\n(Tip: --since=10m shows only recent lines, and --timestamps adds Kubernetes' own time to every line.)`); clue(`rounding-helper has been running since ${fmtShort(S.shaverStart)}.`); clue('rounding-helper sweeps remainders to ACCT-9981 (holder: D.R. Holdings LLC).'); clue('rounding-helper authenticates as svc-dreyes-batch.'); }},
- {id:'paper', t:'Paper Trail', g:'Describe the rounding-helper pod (or its deployment) to see who deployed it and from where.',
-  h:['describe works on pods and on deployments.','Look at Annotations, Service Account and Image.','kubectl describe pod rounding-helper-<Tab> -n tmp-reconcile'],
-  ok:e=>e.verb==='describe'&&e.deploy==='rounding-helper',
-  done:()=>{ narr(`The annotation says requested-by: m.okafor, the new contractor. But the image comes from the dreyes-sandbox registry project, and the pod runs as svc-dreyes-batch. Remember: annotations are free text. Anyone with deploy access can type anything there.\n\nFirst things first, though: stop the bleeding.`); clue('Annotation on rounding-helper: requested-by: m.okafor.'); clue('Image pulled from registry.granite.internal/dreyes-sandbox/…'); }},
- {id:'stop', t:'Stop the Bleeding', g:'Scale the rounding-helper deployment down to 0 replicas.',
-  h:['A Deployment keeps a set number of pods alive. Delete the pod and it simply makes a new one (try it if you like!).','Check the deployment name with: kubectl get deployments -n tmp-reconcile. Then use kubectl scale ... --replicas=<n>.','kubectl scale deployment rounding-helper --replicas=0 -n tmp-reconcile'],
-  ok:e=>e.verb==='scale'&&e.deploy==='rounding-helper'&&e.replicas===0,
-  done:()=>{ narr(`The pod is Terminating. Run kubectl get pods -n tmp-reconcile to watch it disappear.\n\nWhy scale instead of deleting? Scaling to 0 is reversible, and it leaves the Deployment (image, service account, annotations) in place as evidence for the Platform team.`); clue('Contained: rounding-helper scaled to 0 (deployment kept as evidence).'); }},
- {id:'revive', t:'Revive the Ledger', g:'Restart ledger-api the way the Platform team usually asks: scale it to 0, check the old pod is gone, then scale it back to 1.',
-  h:["The bad writer is gone, but the crashing pod's emptyDir journal is still dirty. Container restarts keep the emptyDir; only a brand-new pod gets a clean one.",'Scale to 0, then watch the old pod disappear live: watch -n 1 kubectl get pods -n bank-prod (Ctrl+C or Enter stops it). Then scale back to 1.','kubectl scale deployment ledger-api --replicas=0 -n bank-prod\n     kubectl get pods -n bank-prod        (wait until ledger-api is gone)\n     kubectl scale deployment ledger-api --replicas=1 -n bank-prod'],
-  ok:e=>e.verb==='scale'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.replicas>=1&&e.wasZero,
-  nudge:e=>{
-    if (e.verb==='scale'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.replicas===0) return 'Good. The old pod is shutting down. Confirm it is gone with kubectl get pods -n bank-prod, then scale back to 1.';
-    if ((e.verb==='rollout'||e.verb==='delete')&&e.deploy==='ledger-api'&&e.ns==='bank-prod') return 'That works too: you got a fresh pod! But practice the move the Platform team usually asks for: scale to 0, then back to 1.';
-    return null; },
-  done:()=>{ narr(`A brand-new ledger-api pod is on its way. Give it a few seconds, then look at it with kubectl get pods -n bank-prod.
-(Or watch it arrive: watch -n 1 kubectl get pods -n bank-prod. Ctrl+C or Enter stops it.)`); S.flags.revivedAt = now(); }},
- {id:'allclear', t:'All Clear?', g:'Confirm the new ledger-api pod is healthy: check it shows Running 1/1, then read its logs.',
-  h:['First make sure it shows Running and READY 1/1 with get pods. A new pod has a new name and a young AGE.','The new pod has a new name. Tab will find it.','kubectl logs -n bank-prod ledger-api-<Tab>'],
-  ok:e=>e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&e.healthy&&!e.prev,
-  nudge:e=>(e.verb==='logs'&&e.deploy==='ledger-api'&&e.ns==='bank-prod'&&!e.healthy)?'That pod is not the healthy one. Run kubectl get pods -n bank-prod and look for the newest ledger-api pod.':null,
-  done:()=>{ narr(`Clean journal, checksums pass, and the sweep account is back to ACCT-0001 (bank reserve). Balances are unfrozen. 🎉\n\nBefore naming anyone, tie up a few loose ends.`); clue('ledger-api recovered on a fresh pod.'); }},
- {id:'auditor', q:true, t:'The Silent Watchdog', g:"bank-prod has a ledger-auditor that should have flagged ACCT-9981 by now, but it has no pods at all. Did it crash, or did someone stop it on purpose? Investigate, then:  answer crashed  or  answer intentional",
-  h:["It won't show up in get pods, because there is no pod. List the deployments in bank-prod instead.",
-     'READY 0/0 means the deployment was told to run zero pods. A crash would look like 0/1 with a pod stuck in Error or CrashLoopBackOff. Events say what happened and when: kubectl get events -n bank-prod',
-     '"Scaled down replica set … from 1 to 0", then Killing "Stopping container" means someone scaled it down. Type: answer intentional'],
-  ok:e=>e.verb==='answer'&&S.flags.sawAuditor&&judgeWhy(e.text)==='intentional',
+    if (!r) return 'Answer with how long ago (e.g. answer 45m, answer 1h30m) or a clock time (e.g. answer 03:30). The header shows the current station time.';
+    return `Not quite: that's about ${fmtAge(r.off*MIN)} away from when it started. Look for when the BackOff warning was FIRST seen (kubectl get events -n life-support -o wide).`; },
+  done:()=>{ narr(`Right. o2-scrubber began crash-looping at ${clock(S.crashStart)}, about ${fmtAge(now()-S.crashStart)} ago, well before the CO2 alarm tripped. That start time is the first thing Mission Control will ask for.\n\nHow to find it:\n  • describe pod → Events → "(x${Math.floor((now()-S.crashStart)/20000)} over ${fmtAge(now()-S.crashStart)})"\n  • get events -o wide → FIRST SEEN and COUNT\nEvents only last about an hour, unless they keep repeating (like this one). On a station with a 40-hour comms gap, that is worth knowing: look early, write it down.`); clue(`o2-scrubber began crash-looping at ${clock(S.crashStart)}.`); }},
+ {id:'thermal', t:'Follow the Heat', g:'List the pods in the station-ops namespace, where thermal-loop lives.',
+  h:['Same command you used for life-support, different namespace.','kubectl get pods -n station-ops'],
+  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&(e.all||e.ns==='station-ops'),
+  done:()=>{ narr(`power-governor and airlock-ctl are up. thermal-loop has no pod at all: not crashing, not pending, simply absent.\n\nA pod that is missing entirely is a different kind of problem from a pod that keeps dying. get pods can't tell you about something that isn't there. You need to ask what is SUPPOSED to be running.`); clue('thermal-loop (station-ops) has no pods at all.'); }},
+ {id:'why', q:true, t:'Crash or Command?', g:'Did thermal-loop crash, or did something stop it on purpose? Investigate, then:  answer crashed  or  answer intentional',
+  h:["It won't show up in get pods, because there is no pod. List the deployments in station-ops instead.",
+     'READY 0/0 means the deployment was told to run zero pods. A crash would look like 0/1, with a pod stuck in Error or CrashLoopBackOff. Events say what happened and when: kubectl get events -n station-ops',
+     '"Scaled down replica set … from 1 to 0", then Killing "Stopping container thermal", means something scaled it down. Type: answer intentional'],
+  ok:e=>e.verb==='answer'&&S.flags.sawShed&&judgeWhy(e.text)==='intentional',
   nudge:e=>{ if (e.verb!=='answer') return null;
-    if (!S.flags.sawAuditor) return 'Check the evidence before you answer: try kubectl get deployments -n bank-prod and kubectl get events -n bank-prod.';
+    if (!S.flags.sawShed) return 'Check the evidence before you answer: try kubectl get deployments -n station-ops and kubectl get events -n station-ops.';
     const j=judgeWhy(e.text);
-    if (j==='error') return "Look again. A crashed app still has its pod (READY 0/1, status Error or CrashLoopBackOff). ledger-auditor shows 0/0: its deployment was told to run zero pods. What do the events say?";
+    if (j==='error') return "Look again. A crashed app still has its pod (READY 0/1, status Error or CrashLoopBackOff). thermal-loop shows 0/0: its deployment was told to run zero pods. What do the events say?";
     return 'Answer with: answer crashed  or  answer intentional'; },
-  done:()=>{ narr(`Intentional. A crash leaves the deployment still wanting its pod. Here the deployment itself was changed to want 0 pods: "Scaled down … from 1 to 0" at ${clock(S.auditorStop)}, then Killing: "Stopping container auditor". The pod is gone, but its events are still there. Events are only kept for a limited time (about an hour by default), so check them early.\n\nEvents tell you WHAT happened and WHEN, but not WHO. The Platform team can check the API audit log for who ran the command. That's a great line for your handoff.`); clue(`ledger-auditor was scaled 1 → 0 on purpose at ${clock(S.auditorStop)}.`); }},
- {id:'restore', t:'Wake the Watchdog', g:'Bring the auditor back: scale ledger-auditor to 1, check its pod is Running, then read its logs.',
-  h:['Same scale command as before, this time with --replicas=1.','Give it a few seconds, check kubectl get pods -n bank-prod shows it Running 1/1, then read its logs (Tab completes the name).','kubectl scale deployment ledger-auditor --replicas=1 -n bank-prod\n     kubectl get pods -n bank-prod\n     kubectl logs -n bank-prod ledger-auditor-<Tab>'],
-  ok:e=>e.verb==='logs'&&e.deploy==='ledger-auditor'&&e.healthy,
-  nudge:e=>(e.verb==='scale'&&e.deploy==='ledger-auditor'&&e.replicas>=1)?'Scaled up. Give it a few seconds, confirm it shows Running with kubectl get pods -n bank-prod, then read its logs.':null,
-  done:()=>{ narr(`The moment it came back, the auditor flagged ACCT-9981, the same service account, and a first credit on ${fmtShort(S.shaverStart).slice(4)}. Its weekly deep scan was due at ${clock(S.auditorStop+6*MIN)}, just 6 minutes after someone scaled it to 0.\n\nWhoever stopped it knew exactly what it was about to find.`); clue(`ledger-auditor was stopped 6 minutes before its weekly deep scan.`); }},
- {id:'oom', q:true, t:'Loose Ends', g:"One payments-worker pod shows 2 restarts. Is that part of tonight's incident? Find why and when it restarted, then:  answer related  or  answer unrelated",
-  h:['Find the payments-worker pod whose RESTARTS is not 0 (kubectl get pods -n bank-prod). The "(… ago)" next to its restart count already hints at when.',
-     'Describe that pod and read Last State: the Reason, the Exit Code and the Finished time. Compare the time with when rounding-helper started.',
-     'OOMKilled / exit 137 = it ran out of memory, and it happened before rounding-helper even existed. Type: answer unrelated'],
+  done:()=>{ narr(`Intentional. A crash leaves the deployment still wanting its pod. Here the deployment itself was changed to want 0 pods: "Scaled down … from 1 to 0" at ${clock(S.shedAt)}, then Killing: "Stopping container thermal".\n\nAnd read the warning just above it. Reason: LoadShed, and the source is power-governor, not a person. Events have a SOURCE column (kubectl get events -o wide, or the From column in describe) and it is the difference between "a controller did this for a reason" and "somebody ran a command". A human running kubectl scale leaves no LoadShed event behind, only the ScalingReplicaSet one.\n\nThe same thing happened in comms. That is why you can't call home.`); clue(`thermal-loop was scaled 1 → 0 at ${clock(S.shedAt)} by power-governor (Reason: LoadShed).`); }},
+ {id:'governor', t:'Read the Governor', g:'Read the power-governor logs to find out why it shed the thermal loop.',
+  h:['Same logs command as before, a different pod and namespace. Tab completes the name.','kubectl logs -n station-ops power-governor-<Tab>','If you only want the recent lines: kubectl logs -n station-ops power-governor-<Tab> --since=30m --timestamps'],
+  ok:e=>e.verb==='logs'&&e.deploy==='power-governor',
+  done:()=>cause()},
+ {id:'power', t:'Count the Watts', g:'Find out what is actually drawing the power: show CPU and memory per pod with kubectl top.',
+  h:['kubectl top pods works like get pods, but shows live CPU and memory instead of status. Add -A to see every namespace at once.','kubectl top pods -A','kubectl top pods -n science-lab'],
+  ok:e=>e.verb==='top'&&e.kind==='pods',
+  done:()=>{ narr(`Three spectro-analyzer pods, each chewing through CPU and memory without pausing, on a station running on 11% solar. The governor protected them and shed your heating, because somebody labelled them critical.\n\nkubectl top needs the metrics-server (it is in kube-system). If top ever says "Metrics API not available", that is what's missing, and it is a Mission Control (Tier 3) problem, not yours.`); clue('science-lab runs 3 × spectro-analyzer, the largest shedable load on the station.'); }},
+ {id:'choose', q:true, t:'The Cold Math', g:'You have 4 kW free. thermal-loop needs 22 kW and the uplink needs 18 kW. Only one workload on this station is big enough to free that, and is not keeping anyone alive. Name it:  answer <deployment>',
+  h:['Look at what you are allowed to lose. water-recycler, hydroponics, air-mixer and airlock-ctl are life support. power-governor is what stops the station browning out.','That leaves one visiting science payload, running three copies of itself.','Type: answer spectro-analyzer'],
+  ok:e=>e.verb==='answer'&&judgeLoad(e.text)==='science',
+  nudge:e=>{ if (e.verb!=='answer') return null;
+    const j=judgeLoad(e.text);
+    if (j==='need') return 'Those two are what you are trying to bring back, not what you can switch off. Something else has to make room for them.';
+    if (j==='life') return 'That is life support. Everything in life-support, plus airlock-ctl, keeps people breathing or keeps the doors shut. Look outside those namespaces.';
+    if (j==='gov') return 'The governor is the only thing keeping the station from browning out. Stopping it would not free power, it would just remove the adult in the room.';
+    return 'Name a deployment, e.g. answer spectro-analyzer.'; },
+  done:()=>{ narr(`Agreed. The samples can wait 40 hours. The crew cannot.\n\nThis is the whole job in one decision: you are not fixing the station, you are deciding what it can afford to run until the people who own it wake up. Write down what you switched off and why. That is the part Mission Control actually needs.`); }},
+ {id:'shed', t:'Shed the Load', g:'Scale the spectro-analyzer deployment down to 0 replicas in science-lab.',
+  h:['A Deployment keeps a set number of pods alive. Delete a pod and it simply makes a new one (try it if you like!).','Check the deployment name with: kubectl get deployments -n science-lab. Then use kubectl scale ... --replicas=<n>.','kubectl scale deployment spectro-analyzer --replicas=0 -n science-lab'],
+  ok:e=>e.verb==='scale'&&e.deploy==='spectro-analyzer'&&e.replicas===0,
+  done:()=>{ narr(`Three pods Terminating, 36 kW freed. Run kubectl get pods -n science-lab to watch them go, or watch it live:\n  watch -n 1 kubectl get pods -n science-lab   (Ctrl+C or Enter stops it)\n\nWhy scale instead of deleting? Scaling to 0 is reversible and it leaves the Deployment in place, so the science team can bring their experiment straight back when the sun comes up. Deleting would throw away their configuration along with the pods.`); S.flags.scienceOffAt = now(); clue('spectro-analyzer scaled to 0: 36 kW freed (deployment kept intact).'); }},
+ {id:'heat', t:'Restart the Heat', g:'Bring thermal-loop back: scale it to 1 in station-ops, confirm its pod is Running, then read its logs.',
+  h:['Same scale command as before, this time with --replicas=1.','Give it a few seconds, check kubectl get pods -n station-ops shows it Running 1/1, then read its logs (Tab completes the name).','kubectl scale deployment thermal-loop --replicas=1 -n station-ops\n     kubectl get pods -n station-ops\n     kubectl logs -n station-ops thermal-loop-<Tab>'],
+  ok:e=>e.verb==='logs'&&e.deploy==='thermal-loop'&&e.healthy,
+  nudge:e=>(e.verb==='scale'&&e.deploy==='thermal-loop'&&e.replicas>=1)?'Scaled up. Give it a few seconds, confirm it shows Running with kubectl get pods -n station-ops, then read its logs.':null,
+  done:()=>{ narr(`The loop is circulating and the beds are warming, about a degree a minute. The scrubber still won't start, though: check it with kubectl get pods -n life-support and you will see it is still crash-looping.\n\nThat is the emptyDir from the describe output earlier. The scrubber wrote a lockout into its calibration volume when the beds went cold, and a container restart keeps that volume. Only a brand-new pod gets a clean one.`); S.flags.heatAt = now(); clue('thermal-loop restored; amine beds warming.'); }},
+ {id:'revive', t:'Revive the Scrubber', g:'Restart o2-scrubber the way Mission Control usually asks: scale it to 0, check the old pod is gone, then scale it back to 1.',
+  h:["Container restarts keep the emptyDir. Only a brand-new pod gets a clean calibration volume, and only scaling the Deployment gives you one.",'Scale to 0, then watch the old pod disappear live: watch -n 1 kubectl get pods -n life-support (Ctrl+C or Enter stops it). Then scale back to 1.','kubectl scale deployment o2-scrubber --replicas=0 -n life-support\n     kubectl get pods -n life-support        (wait until it is gone)\n     kubectl scale deployment o2-scrubber --replicas=1 -n life-support'],
+  ok:e=>e.verb==='scale'&&e.deploy==='o2-scrubber'&&e.ns==='life-support'&&e.replicas>=1&&e.wasZero,
+  nudge:e=>{
+    if (e.verb==='scale'&&e.deploy==='o2-scrubber'&&e.ns==='life-support'&&e.replicas===0) return 'Good. The old pod is shutting down. Confirm it is gone with kubectl get pods -n life-support, then scale back to 1.';
+    if ((e.verb==='rollout'||e.verb==='delete')&&e.deploy==='o2-scrubber'&&e.ns==='life-support') return 'That works too: you got a fresh pod! But practice the move Mission Control usually asks for: scale to 0, then back to 1.';
+    return null; },
+  done:()=>{ narr(`A brand-new o2-scrubber pod is on its way. Give it a few seconds, then look at it with kubectl get pods -n life-support.
+(Or watch it arrive: watch -n 1 kubectl get pods -n life-support. Ctrl+C or Enter stops it.)`); S.flags.revivedAt = now(); }},
+ {id:'allclear', t:'Breathe', g:'Confirm the new o2-scrubber pod is healthy: check it shows Running 1/1, then read its logs.',
+  h:['First make sure it shows Running and READY 1/1 with get pods. A new pod has a new name and a young AGE.','The new pod has a new name. Tab will find it.','kubectl logs -n life-support o2-scrubber-<Tab>'],
+  ok:e=>e.verb==='logs'&&e.deploy==='o2-scrubber'&&e.ns==='life-support'&&e.healthy&&!e.prev,
+  nudge:e=>(e.verb==='logs'&&e.deploy==='o2-scrubber'&&e.ns==='life-support'&&!e.healthy)?'That pod is not the healthy one. Run kubectl get pods -n life-support and look for the newest o2-scrubber pod.':null,
+  done:()=>{ narr(`Clean calibration, beds at temperature, bed A cycling. The CO2 number in the header has stopped climbing and started falling. 🎉\n\nTwo things left: one loose end that has been bothering you, and a radio to switch on.`); clue('o2-scrubber recovered on a fresh pod; CO2 falling.'); }},
+ {id:'oom', q:true, t:'Loose Ends', g:"One hydroponics pod shows 2 restarts. Is that part of tonight's emergency? Find why and when it restarted, then:  answer related  or  answer unrelated",
+  h:['Find the hydroponics pod whose RESTARTS is not 0 (kubectl get pods -n life-support). The "(… ago)" next to its restart count already hints at when.',
+     'Describe that pod and read Last State: the Reason, the Exit Code and the Finished time. Compare that time with when the governor shed the thermal loop.',
+     'OOMKilled / exit 137 = it ran out of memory, and it happened two days before the lunar night began. Type: answer unrelated'],
   ok:e=>e.verb==='answer'&&S.flags.sawOOM&&judgeRel(e.text)==='unrelated',
   nudge:e=>{ if (e.verb!=='answer') return null;
-    if (!S.flags.sawOOM) return 'Check the evidence before you answer: describe the payments-worker pod that has restarts.';
-    if (judgeRel(e.text)==='related') return `Compare the times: its Last State finished ${fmtShort(S.oomEnd)}, and rounding-helper only started ${fmtShort(S.shaverStart)}. And what does the Reason say?`;
+    if (!S.flags.sawOOM) return 'Check the evidence before you answer: describe the hydroponics pod that has restarts.';
+    if (judgeRel(e.text)==='related') return `Compare the times: its Last State finished ${fmtShort(S.oomEnd)}, and the governor only shed the thermal loop ${fmtShort(S.shedAt)}. And what does the Reason say?`;
     return 'Answer with: answer related  or  answer unrelated'; },
-  done:()=>{ narr(`Unrelated. Last State says Reason: OOMKilled, Exit Code: 137. The worker needed more memory than its 512Mi limit, so the system killed it. That's an error, not a person. It happened ${fmtShort(S.oomEnd)}, about 5 hours before rounding-helper appeared.\n\nIf you read its logs --previous, they just stop mid-batch. An OOM kill gives the app no chance to write an error message. That's worth a note in the handoff (it may need more memory), but it isn't part of this case.`); clue(`payments-worker restart: OOMKilled (exit 137) at ${fmtShort(S.oomEnd)}. Unrelated.`); }},
- {id:'accuse', t:'The Accusation', g:'Name the culprit: accuse marcus, accuse dana, or accuse priya.',
-  h:['Review your case file (type: clues). Which evidence can be faked, and which cannot?','Annotations are free text. Registry projects and service accounts are tied to real identities.'],
-  ok:e=>e.verb==='accuse'&&e.who==='dana', done:()=>reveal()},
- {id:'escalate', t:'Hand It Off', g:'Type escalate to hand the case to the Platform team.',
-  h:['Just type: escalate'], ok:e=>e.verb==='escalate', done:()=>finale()},
+  done:()=>{ narr(`Unrelated. Last State says Reason: OOMKilled, Exit Code: 137. The tray controller asked for more memory than its 512Mi limit, so the kernel killed it. That is a resource limit, not a person and not the power cut. It happened ${fmtShort(S.oomEnd)}, two days before the lunar night began.\n\nIf you read its logs --previous they just stop mid-cycle. An OOM kill gives the app no chance to write a goodbye. Worth one line in your report (it may need a bigger limit), but it is not tonight's story.`); clue(`hydroponics restart: OOMKilled (exit 137) at ${fmtShort(S.oomEnd)}. Unrelated.`); }},
+ {id:'uplink', t:'Call Home', g:'You have 18 kW free and a radio that needs exactly that. Bring comms-uplink back in the comms namespace, confirm it is Running, then read its logs.',
+  h:['Same scale command, in the comms namespace.','Give it a few seconds, check kubectl get pods -n comms, then read its logs (Tab completes the name).','kubectl scale deployment comms-uplink --replicas=1 -n comms\n     kubectl get pods -n comms\n     kubectl logs -n comms comms-uplink-<Tab>'],
+  ok:e=>e.verb==='logs'&&e.deploy==='comms-uplink'&&e.healthy,
+  nudge:e=>(e.verb==='scale'&&e.deploy==='comms-uplink'&&e.replicas>=1)?'Scaled up. Give the dish a few seconds to find Earth, confirm it shows Running with kubectl get pods -n comms, then read its logs.':null,
+  done:()=>{ narr(`Carrier locked. telemetry-buffer is flushing 118 minutes of spooled packets: nothing was lost, it was just waiting for a radio.\n\nPower margin: 0 kW free. Every watt on this station is now doing something that keeps someone alive. Time to report.`); clue('comms-uplink restored; Earth link re-acquired.'); }},
+ {id:'transmit', t:'Transmit', g:'Type transmit to send your handover packet to Mission Control.',
+  h:['Just type: transmit'], ok:e=>e.verb==='transmit', done:()=>finale()},
 ];
 const chIdx = id => CH.findIndex(c=>c.id===id);
 function judgeTime(text, target){
@@ -590,8 +648,14 @@ function judgeTime(text, target){
   return null;
 }
 function judgeWhy(t){ t=String(t).toLowerCase();
-  if (/intent|purpose|deliberat|manual|scal|stopped|someone|human|person|by hand|on purpose/.test(t)) return 'intentional';
+  if (/intent|purpose|deliberat|manual|scal|stopped|someone|human|person|by hand|on purpose|shed|governor|told/.test(t)) return 'intentional';
   if (/crash|error|fail|oom|memory|bug|broke|died/.test(t)) return 'error'; return null; }
+function judgeLoad(t){ t=String(t).toLowerCase();
+  if (/spectro|analyz|analys|science|lab|sample|experiment|payload/.test(t)) return 'science';
+  if (/thermal|uplink|comms|radio|heat/.test(t)) return 'need';
+  if (/governor|power-gov/.test(t)) return 'gov';
+  if (/water|hydro|mixer|airlock|scrubber|o2|life/.test(t)) return 'life';
+  return null; }
 function judgeRel(t){ t=String(t).toLowerCase();
   if (/unrelated|not related|not part|separate|coincid|independent|oom|memory|^no\b/.test(t)) return 'unrelated';
   if (/related|^yes|part of|connected|linked/.test(t)) return 'related'; return null; }
@@ -613,16 +677,16 @@ function emit(e){
 function renderSide(){
   $('#hNs').textContent = S.ns;
   const n = Math.min(S.chapter, CH.length);
-  $('#hM').textContent = S.done ? 'case closed' : `${S.chapter+1}/${CH.length}`;
+  $('#hM').textContent = S.done ? 'shift over' : `${S.chapter+1}/${CH.length}`;
   $('#mBar').style.width = (n/CH.length*100)+'%';
-  if (S.done){ $('#mTitle').textContent='Case closed'; $('#mGoal').textContent='Type restart to play again.'; }
+  if (S.done){ $('#mTitle').textContent='Shift over'; $('#mGoal').textContent='Type restart to run it again.'; }
   else { const c=CH[S.chapter]; $('#mTitle').textContent=`${S.chapter+1}. ${c.t}`; $('#mGoal').textContent=c.g; }
   const ul=$('#clues'); ul.innerHTML='';
   if (!S.clues.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='No evidence yet.'; ul.appendChild(li); }
   S.clues.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); });
 }
 function hint(){
-  if (S.done){ dim('The case is closed. Type restart to play again.'); return; }
+  if (S.done){ dim('The shift is over. Type restart to run it again.'); return; }
   const c = CH[S.chapter], i = Math.min(S.hintIdx, c.h.length-1);
   S.hints++; S.hintIdx++;
   const hv = typeof c.h[i]==='function' ? c.h[i]() : c.h[i];
@@ -632,60 +696,79 @@ function hint(){
 /* ---------- story ---------- */
 function briefing(){
   blk(`  ╔══════════════════════════════════════════════╗
-  ║   GRANITE TRUST BANK · NIGHT OPERATIONS      ║
-  ║   THE MIDNIGHT LEDGER — a kubectl mystery    ║
+  ║   HELIOS STATION · FAR SIDE · SOL 318        ║
+  ║   MOON BASE: DARK SIDE — a kubectl shift     ║
   ╚══════════════════════════════════════════════╝`,'banner');
-  blk(`Your pager buzzes.
+  blk(`The cabin alarm wakes you at ${clock(now())}.
 
-  ALERT  ledger-api (bank-prod) is DOWN. Customer balances are frozen.
-  ALSO   Thousands of transactions show fractional-cent discrepancies.
+  ALERT  CO2 ${co2()} ppm and climbing. Hab limit is 1000.
+  ALERT  o2-scrubber (life-support) is DOWN.
+  ALERT  Earth uplink is DOWN. No word in or out.
 
-You are the night-shift admin. The Platform team is asleep, and they will
-want a clean handoff: what broke, when it started, why, and who did it.
+You are the only one awake. The lunar night started four hours ago, so the
+arrays are making 11% of daylight power, and the next supply window, with the
+next chance to hand this to anyone else, is 40 hours out.
 
-Persons of interest on tonight's roster:
-  • Marcus Okafor  contractor, started last month, has deploy access via CI
-  • Dana Reyes     senior DBA, ran a ledger migration 3 days ago
-  • Priya Shah     on-call SRE, paged at the same moment you were`,'story');
-  dim(`Type kubectl commands at the prompt below. help = game commands · hint = a nudge · Tab = autocomplete.`);
+Nobody sabotaged anything tonight. Something did exactly what it was told to.
+Your job is to work out what, decide what this station can afford to run until
+morning, and write it down for the people who own it.
+
+  Power  ${powerFree()} kW free of ${AVAIL} kW   ·   Crew  4 asleep   ·   You  on your own`,'story');
+  dim(`Type kubectl commands at the prompt below. help = game commands · status = station board · hint = a nudge · Tab = autocomplete.`);
   showMission();
 }
-function reveal(){
-  narr(`It was Dana Reyes.
+/* The "who did it" beat: nobody did. A label did. */
+function cause(){
+  narr(`There is your answer, and it is not a person.
 
-  • The rounding-helper image lives in her sandbox registry project: dreyes-sandbox.
-  • The pod runs as her batch service account: svc-dreyes-batch.
-  • The payouts go to ACCT-9981, held by D.R. Holdings LLC.
-  • She migrated the ledger 3 days ago, the same day tmp-reconcile appeared.
-  • Tonight she scaled ledger-auditor to 0, minutes before its weekly deep scan.
-    (Events can't prove who. The Platform team's API audit log will confirm it.)
-  • The requested-by: m.okafor annotation? Free text she typed to frame the new contractor.
+  • ${clock(S.nightAt)}  solar input fell to 11%, below the governor's 35% minimum.
+  • ${clock(S.shedAt)}  it switched to profile=conserve and shed every load
+    that was not labelled helios.io/critical: thermal-loop, then comms-uplink.
+  • It kept everything that was labelled critical. Including science-lab.
 
-Marcus is cleared. Priya slept through the whole thing, as on-call SREs deserve to.`);
-  clue('Culprit identified: Dana Reyes.');
+Read that last governor line again: "retaining spectro-analyzer (helios.io/critical=true)".
+The science payload was deployed 26 sols ago by copying an existing manifest,
+and the copy brought the critical label with it. Check it yourself:
+  kubectl describe deployment spectro-analyzer -n science-lab
+
+So a rock-sampling experiment outranked the heater that keeps the crew breathing.
+No malice, no bad command: one label, copied from a file that deserved it, onto
+one that didn't. That is how most of these nights actually go.
+
+The governor is not broken either. It did exactly what it was configured to do,
+which is why nothing here will fix itself. Free some power, and do it by hand.`);
+  clue('Cause: spectro-analyzer carries helios.io/critical=true, copied from another manifest.');
+  clue(`power-governor entered profile=conserve at ${clock(S.shedAt)} (solar 11% < 35% minimum).`);
 }
 function finale(){
-  blk(`TICKET PLAT-4471 → Platform team (severity: high)
+  const co = co2();
+  blk(`TRANSMIT → MISSION CONTROL (EARTH)   packet HL-318-07   priority: high
 
-  What broke   ledger-api 2.14.1 (bank-prod) crash-looped: dirty journal, exit code 1.
-  Timeline     ${fmtShort(S.oomEnd)}  payments-worker OOMKilled (exit 137). Unrelated; may need more memory
-               ${fmtShort(S.shaverStart)}  rounding-helper starts in tmp-reconcile. Skimming begins
-               ${fmtShort(S.crashStart)}  ledger-api starts crash-looping (exit 1)
-               ${fmtShort(S.auditorStop)}  ledger-auditor scaled 1 → 0 on purpose (who: see API audit log)
-               ${fmtShort(T0)}  night shift paged
-               ${fmtShort(S.flags.containedAt||T0)}  rounding-helper scaled to 0
-               ${fmtShort(S.flags.revivedAt||now())}  ledger-api restarted (scale 0 → 1); ledger-auditor restored
-  Why          rounding-helper (tmp-reconcile) wrote rounding remainders to ACCT-9981.
-  Who          Evidence points to Dana Reyes: dreyes-sandbox image, svc-dreyes-batch
-               service account, D.R. Holdings payout account. Annotation naming
-               m.okafor appears forged.
-  Actions      • Scaled tmp-reconcile/rounding-helper to 0 (deployment kept as evidence)
-               • Replaced ledger-api pod via scale 0 → 1; journal clean, checksums OK
-  Please       Revoke svc-dreyes-batch, audit ACCT-9981, check the API audit log for
-               the ledger-auditor scale-down, remove tmp-reconcile when done.`,'mission');
-  narr(`CASE CLOSED. Nice work, detective.
+  What broke   o2-scrubber 3.2.0 (life-support) crash-looped, exit code 1:
+               amine beds below minimum temperature, thermal loop unreachable.
+  Timeline     ${fmtShort(S.oomEnd)}  hydroponics OOMKilled (exit 137). Unrelated; limit may be too low
+               ${fmtShort(S.nightAt)}  lunar night: solar input 11%, below the 35% minimum
+               ${fmtShort(S.shedAt)}  power-governor profile=conserve: shed thermal-loop, then comms-uplink
+               ${fmtShort(S.crashStart)}  o2-scrubber starts crash-looping (beds cold)
+               ${fmtShort(T0)}  CO2 alarm; night watch begins
+               ${fmtShort(S.flags.scienceOffAt||T0)}  spectro-analyzer scaled 3 → 0 (36 kW freed)
+               ${fmtShort(S.flags.heatAt||T0)}  thermal-loop restored
+               ${fmtShort(S.flags.revivedAt||now())}  o2-scrubber replaced (scale 0 → 1); clean calibration
+  Why          science-lab/spectro-analyzer carries helios.io/critical=true, copied
+               from station-ops/airlock-ctl when the payload was deployed on sol 292.
+               The governor protected it and shed life-support heating instead.
+               Configuration error. No operator action caused this.
+  Actions      • Scaled science-lab/spectro-analyzer to 0 (deployment kept intact)
+               • Restored station-ops/thermal-loop and comms/comms-uplink
+               • Replaced the o2-scrubber pod for a clean calibration volume
+  Status       CO2 ${co} ppm and falling · power margin ${powerFree()} kW · all life support nominal
+  Please       Remove helios.io/critical from the science payload before the next
+               lunar night, review what else inherited that label, raise the
+               hydroponics memory limit, and tell the science team their
+               experiment window needs 36 kW they do not currently have.`,'mission');
+  narr(`SHIFT OVER. The crew wakes up to air.
 
-Commands run: ${S.cmds} · Hints used: ${S.hints} · Wrong accusations: ${S.wrong}
+Commands run: ${S.cmds} · Hints used: ${S.hints} · Station log entries: ${S.clues.length}
 Field manual: ${S.learned.size}/${MANUAL.length} commands used.`);
   blk(`Your cheat sheet:
   kubectl get ns                                     list namespaces
@@ -696,13 +779,15 @@ Field manual: ${S.learned.size}/${MANUAL.length} commands used.`);
   kubectl get pods <pod> -n <ns> -o wide             which node it's on
   kubectl get sts -n <ns>                            StatefulSets (pods named -0, -1…)
   kubectl logs <pod> -n <ns>        (--previous)     output (of the crashed run)
+  kubectl logs <pod> --since=1h --timestamps         recent lines, with times
   kubectl get deploy -n <ns>                         what manages the pods
+  kubectl get deploy -n <ns>                         READY 0/0 = told to run none
   kubectl scale deploy <name> --replicas=0 -n <ns>   stop everything, keep the config
   kubectl scale deploy <name> --replicas=1 -n <ns>   bring it back fresh
-  kubectl get events -n <ns>                         recent history
-  kubectl get events -n <ns> -o wide                 FIRST SEEN + COUNT: when it began
-  kubectl logs <pod> --since=1h --timestamps         recent lines, with times
-  Why it stopped:  0 Completed · 1 Error · 137 OOMKilled · Killing/Scaling event = on purpose
+  kubectl get events -n <ns>         (-o wide)       recent history + FIRST SEEN, COUNT, SOURCE
+  kubectl top pods -n <ns>          (-A for all)     what is actually using resources
+  Why it stopped:  0 Completed · 1 Error · 137 OOMKilled · Killing/ScalingReplicaSet = on purpose
+  Who stopped it:  the SOURCE column. A controller leaves its name; a person leaves none.
   kubectl config set-context --current --namespace=<ns>`,'raw');
   dim(`Type restart to play again. (The pod names change every game.)`);
   S.done = true; renderSide();
@@ -713,7 +798,7 @@ const RT = {statefulset:'statefulsets',statefulsets:'statefulsets',sts:'stateful
   namespace:'namespaces',namespaces:'namespaces',ns:'namespaces',service:'services',services:'services',svc:'services',event:'events',events:'events',ev:'events',
   node:'nodes',nodes:'nodes',no:'nodes',job:'jobs',jobs:'jobs',cronjob:'cronjobs',cronjobs:'cronjobs',cj:'cronjobs',replicaset:'replicasets',replicasets:'replicasets',rs:'replicasets',all:'all'};
 const VERBS = ['get','describe','logs','scale','delete','rollout','config','top','version','cluster-info','explain'];
-const GAME = ['watch','help','hint','mission','clues','codes','clear','answer','accuse','escalate','restart','history'];
+const GAME = ['watch','help','hint','mission','status','log','clues','codes','clear','answer','transmit','escalate','restart','history'];
 const FLAGS = ['-n','--namespace','-A','--all-namespaces','-o','--previous','--replicas=','--tail=','--current','-c'];
 function tokenize(s){ const r=[]; const re=/"([^"]*)"|'([^']*)'|(\S+)/g; let m; while((m=re.exec(s))) r.push(m[1]??m[2]??m[3]); return r; }
 function parseFlags(args){
@@ -789,7 +874,7 @@ function kubectl(args){
   if (o.selector!=null){
     const ps = parseSelector(o.selector); if (ps.error){ err(ps.error); return; }
     o.sel = ps.reqs;
-    if (verb==='delete'){ tip(`Deleting by label (-l) removes every pod that matches at once, and one typo in the selector can take out the wrong pods. That's on the Platform team's (Tier 3) cheat sheet, not ours. (Blocked in this sim.) To see what a selector matches, run: kubectl get pods -n ${ns} -l '${o.selector}'`); return; }
+    if (verb==='delete'){ tip(`Deleting by label (-l) removes every pod that matches at once, and one typo in the selector can take out the wrong pods. That's on Mission Control's (Tier 3) cheat sheet, not ours. (Blocked in this sim.) To see what a selector matches, run: kubectl get pods -n ${ns} -l '${o.selector}'`); return; }
     if (verb!=='get' && verb!=='describe'){ tip('Label selectors (-l) work with get and describe in this sim.'); return; }
   }
   if (!verb){ kHelp(); return; }
@@ -803,12 +888,12 @@ function kubectl(args){
     case 'config': return cmdConfig(o);
     case 'top': return cmdTop(o, ns);
     case 'version': raw(`Client Version: v1.34.1\nKustomize Version: v5.7.1\nServer Version: v1.33.4`); return;
-    case 'cluster-info': raw(`Kubernetes control plane is running at https://api.granite-prod.internal:6443\nCoreDNS is running at https://api.granite-prod.internal:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy`); return;
+    case 'cluster-info': raw(`Kubernetes control plane is running at https://api.helios-luna.internal:6443\nCoreDNS is running at https://api.helios-luna.internal:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy`); return;
     case 'help': case '--help': case '-h': kHelp(); return;
     case 'explain': raw(`KIND:     ${(o.pos[1]||'Pod')}\nVERSION:  v1\n\nDESCRIPTION:\n  (explain prints API docs. In real life, try: kubectl explain pod.spec.containers)`); return;
-    case 'edit': tip(`kubectl edit opens a live Deployment's config in a text editor (usually vim), and your changes take effect the moment you save. One typo can take an app down. That's on the Platform team's (Tier 3) cheat sheet, not ours. To just read a Deployment's config: kubectl describe deployment <name> -n <ns>. (Blocked in this sim.)`); return;
+    case 'edit': tip(`kubectl edit opens a live Deployment's config in a text editor (usually vim), and your changes take effect the moment you save. One typo can take an app down. That's on Mission Control's (Tier 3) cheat sheet, not ours. To just read a Deployment's config: kubectl describe deployment <name> -n <ns>. (Blocked in this sim.)`); return;
     case 'exec': case 'apply': case 'create': case 'patch': case 'port-forward': case 'cp': case 'drain': case 'cordon': case 'uncordon': case 'label': case 'annotate': case 'set': case 'run': case 'expose': case 'attach': case 'replace': case 'taint': case 'debug':
-      tip(`kubectl ${verb} is a real command, but it's not part of this case. At work, changes like this are usually "escalate to the Platform team" territory.`); return;
+      tip(`kubectl ${verb} is a real command, but it's not part of this case. At work, changes like this are usually "escalate to the people who own the cluster" territory. Up here, that means waiting for the uplink.`); return;
     default: {
       const sug = VERBS.find(v=>v.startsWith(verb.slice(0,2)));
       err(`error: unknown command "${verb}" for "kubectl"${sug?`\n\nDid you mean this?\n\t${sug}`:''}`);
@@ -839,7 +924,7 @@ Common flags:
   --since=<1h|10m>        (logs) only lines from the last hour / 10 min
   --timestamps            (logs) add a timestamp to every line
   --replicas=<n>          (scale) desired number of pods
-  -l, --selector <label>  (get, describe) only pods with that label, e.g. -l app=ledger-api
+  -l, --selector <label>  (get, describe) only pods with that label, e.g. -l app=o2-scrubber
 
 Also works:  watch -n 1 <kubectl command>, and pipes: | grep -i, | sort -u, | head, | tail, | wc -l`);
 }
@@ -916,7 +1001,7 @@ function cmdGet(o, ns){
     if (names.length){ for (const n of names) if (!list.find(d=>d.name===n)){ notFound('deployments.apps',n); return; } list=list.filter(d=>names.includes(d.name)); }
     if (!list.length){ none(); return; }
     const head=['NAME','READY','UP-TO-DATE','AVAILABLE','AGE']; if (all) head.unshift('NAMESPACE'); if (wide) head.push('CONTAINERS','IMAGES','SELECTOR');
-    if (all || ns==='bank-prod') S.flags.sawAuditor = true;
+    if (all || ns==='station-ops') S.flags.sawShed = true;
     raw(nameOnly ? list.map(d=>'deployment.apps/'+d.name).join('\n') : table([head, ...list.map(d=>{ const r=[d.name,`${depReady(d)}/${d.replicas}`,d.replicas,depReady(d),fmtAge(now()-d.created)]; if(all) r.unshift(d.ns); if(wide) r.push(APPS[d.name].c,d.img||APPS[d.name].img,`app=${d.name}`); return r; })]));
     emit({verb:'get',kind:'deployments',ns,all}); return;
   }
@@ -947,18 +1032,18 @@ function cmdGet(o, ns){
     if (!list.length){ none(); return; }
     if (wide) raw(table([[...(all?['NAMESPACE']:[]),'LAST SEEN','TYPE','REASON','OBJECT','SOURCE','MESSAGE','FIRST SEEN','COUNT'], ...list.map(e=>[...(all?[e.ns]:[]),fmtAge(now()-e.t),e.type,e.reason,e.obj,e.src,e.msg,fmtAge(now()-(e.first||e.t)),e.count||1])]));
     else raw(table([[...(all?['NAMESPACE']:[]),'LAST SEEN','TYPE','REASON','OBJECT','MESSAGE'], ...list.map(e=>[...(all?[e.ns]:[]),fmtAge(now()-e.t),e.type,e.reason,e.obj,e.msg])]));
-    if (all || ns==='bank-prod') S.flags.sawAuditor = true;
+    if (all || ns==='station-ops') S.flags.sawShed = true;
     emit({verb:'get',kind:'events',ns,all}); return;
   }
   if (type==='jobs'||type==='cronjobs'){
     const jp = S.pods.filter(p=>p.job && (all||p.ns===ns));
     if (!jp.length){ none(); return; }
-    if (type==='jobs') raw(table([[...(all?['NAMESPACE']:[]),'NAME','STATUS','COMPLETIONS','DURATION','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),p.job,'Complete','1/1','4m12s',fmtAge(now()-p.created)])]));
-    else raw(table([[...(all?['NAMESPACE']:[]),'NAME','SCHEDULE','TIMEZONE','SUSPEND','ACTIVE','LAST SCHEDULE','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),'nightly-statements',`${new Date(p.created).getMinutes()} ${new Date(p.created).getHours()} * * *`,'<none>','False','0',fmtAge(now()-p.created),'140d'])]));
+    if (type==='jobs') raw(table([[...(all?['NAMESPACE']:[]),'NAME','STATUS','COMPLETIONS','DURATION','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),p.job,'Complete','1/1','3m08s',fmtAge(now()-p.created)])]));
+    else raw(table([[...(all?['NAMESPACE']:[]),'NAME','SCHEDULE','TIMEZONE','SUSPEND','ACTIVE','LAST SCHEDULE','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),'atmo-census',`${new Date(p.created).getMinutes()} ${new Date(p.created).getHours()} * * *`,'<none>','False','0',fmtAge(now()-p.created),'318d'])]));
     return;
   }
   if (type==='nodes'){
-    raw(table([['NAME','STATUS','ROLES','AGE','VERSION'], ...NODES.map(n=>[n[0],'Ready','<none>','212d','v1.33.4'])])); return;
+    raw(table([['NAME','STATUS','ROLES','AGE','VERSION'], ...NODES.map(n=>[n[0],'Ready','<none>','318d','v1.33.4'])])); return;
   }
   if (type==='all'){
     learn(all?'getpodsA':'getpods');
@@ -973,7 +1058,7 @@ function cmdGet(o, ns){
     if (stss.length) parts.push(table([A(['NAMESPACE','NAME','READY','AGE']), ...stss.map(d=>A([d.ns,'statefulset.apps/'+d.name,`${depReady(d)}/${d.replicas}`,fmtAge(now()-d.created)]))]));
     if (deps.length) parts.push(table([A(['NAMESPACE','NAME','DESIRED','CURRENT','READY','AGE']), ...deps.map(d=>A([d.ns,`replicaset.apps/${d.name}-${d.hash}`,d.replicas,depLive(d),depReady(d),fmtAge(now()-d.created)]))]));
     raw(parts.join('\n\n'));
-    if (all || ns==='bank-prod') S.flags.sawAuditor = true;
+    if (all || ns==='station-ops') S.flags.sawShed = true;
     emit({verb:'get',kind:'all',ns,all}); return;
   }
 }
@@ -1008,11 +1093,11 @@ function describePod(p){
   if (a.res){ L.push('    Limits:'); if(a.res[2]) L.push(`      cpu:     ${a.res[2]}`); if(a.res[3]) L.push(`      memory:  ${a.res[3]}`); if(!a.res[2]&&!a.res[3]) L.push('      <none>'); L.push('    Requests:'); L.push(`      cpu:        ${a.res[0]}`); L.push(`      memory:     ${a.res[1]}`); }
   const env=Object.entries(a.env||{});
   if (!env.length) ck('Environment','<none>'); else { L.push('    Environment:'); const w=Math.max(...env.map(e=>e[0].length))+3; env.forEach(([k,val])=>L.push(`      ${(k+':').padEnd(w)}${val}`)); }
-  L.push('    Mounts:'); if (a.journal) L.push('      /var/journal from journal (rw)'); if (p.sts) L.push('      /var/lib/postgresql/data from data (rw)'); L.push(`      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-${hex(p.name,5)} (ro)`);
+  L.push('    Mounts:'); if (a.cal) L.push('      /var/calibration from calibration (rw)'); if (p.sts) L.push('      /var/lib/air-mixer/data from data (rw)'); L.push(`      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-${hex(p.name,5)} (ro)`);
   L.push('Conditions:'); const rd = v.ready==='1/1'?'True ':'False ';
   L.push(table([['Type','Status'],['PodReadyToStartContainers', v.kind==='creating'?'False ':'True '],['Initialized','True '],['Ready',rd],['ContainersReady',rd],['PodScheduled','True ']],'  '));
   L.push('Volumes:');
-  if (a.journal){ L.push('  journal:'); L.push("    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)"); L.push('    Medium:'); L.push('    SizeLimit:  <unset>'); }
+  if (a.cal){ L.push('  calibration:'); L.push("    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)"); L.push('    Medium:'); L.push('    SizeLimit:  <unset>'); }
   if (p.sts){ L.push('  data:'); L.push('    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)'); L.push(`    ClaimName:  data-${p.name}`); L.push('    ReadOnly:   false'); }
   L.push(`  kube-api-access-${hex(p.name,5)}:`); L.push('    Type:                    Projected (a volume that contains injected data from multiple sources)');
   kv('QoS Class','Burstable'); kv('Node-Selectors','<none>'); kv('Tolerations','node.kubernetes.io/not-ready:NoExecute op=Exists for 300s'); L.push(' '.repeat(18)+'node.kubernetes.io/unreachable:NoExecute op=Exists for 300s');
@@ -1032,7 +1117,7 @@ function describeDep(d){
   L.push('Pod Template:'); L.push(`  Labels:           app=${d.name}`); L.push(`  Service Account:  ${a.sa}`); L.push('  Containers:'); L.push(`   ${a.c}:`);
   L.push(`    Image:      ${d.img||a.img}`); L.push(`    Port:       ${a.port||'<none>'}`);
   const env=Object.entries(a.env||{}); if (!env.length) L.push('    Environment:  <none>'); else { L.push('    Environment:'); env.forEach(([k,val])=>L.push(`      ${k}:  ${val}`)); }
-  if (a.journal){ L.push('    Mounts:'); L.push('      /var/journal from journal (rw)'); L.push('  Volumes:'); L.push('   journal:'); L.push("    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)"); }
+  if (a.cal){ L.push('    Mounts:'); L.push('      /var/calibration from calibration (rw)'); L.push('  Volumes:'); L.push('   calibration:'); L.push("    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)"); }
   L.push('Conditions:'); L.push(table([['Type','Status','Reason'],['----','------','------'],['Available', rdy>=d.replicas?'True':'False', rdy>=d.replicas?'MinimumReplicasAvailable':'MinimumReplicasUnavailable'],['Progressing','True','NewReplicaSetAvailable']],'  '));
   kv('OldReplicaSets', d.old.length? d.old.map(h=>`${d.name}-${h} (0/0 replicas created)`).join(', ') : '<none>');
   kv('NewReplicaSet',`${d.name}-${d.hash} (${live}/${d.replicas} replicas created)`);
@@ -1042,7 +1127,7 @@ function describeDep(d){
   return L.join('\n');
 }
 function describeNs(n){
-  const lbl = {'tmp-reconcile':'purpose=temporary-reconciliation'}[n.name] || '<none>';
+  const lbl = {'science-lab':'purpose=research-payload','life-support':'helios.io/critical=true'}[n.name] || '<none>';
   return `Name:         ${n.name}\nLabels:       kubernetes.io/metadata.name=${n.name}\n${lbl==='<none>'?'':'              '+lbl+'\n'}Annotations:  <none>\nStatus:       Active\n\nNo resource quota.\n\nNo LimitRange resource.`;
 }
 function cmdDescribe(o, ns){
@@ -1071,7 +1156,7 @@ function cmdDescribe(o, ns){
     if (names.length){ const m=list.filter(d=>names.some(n=>d.name.startsWith(n))); if (!m.length){ err(`Error from server (NotFound): deployments.apps "${names[0]}" not found`); const w=whereIs(names[0],'deployments'); if (w) tip(w); return; } list=m; }
     if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
     raw(list.map(describeDep).join('\n\n\n'));
-    if (list.some(d=>d.name==='ledger-auditor')) S.flags.sawAuditor = true;
+    if (list.some(d=>d.name==='thermal-loop')) S.flags.sawShed = true;
     for (const d of list) emit({verb:'describe',kind:'deployments',ns:d.ns,deploy:d.name});
     return;
   }
@@ -1082,13 +1167,13 @@ function cmdDescribe(o, ns){
   if (type==='nodes'){
     const list = NODES.filter(n=>!names.length||names.some(x=>n[0].startsWith(x)));
     if (!list.length){ err(`Error from server (NotFound): nodes "${names[0]}" not found`); return; }
-    raw(list.map(n=>{ const pods=S.pods.filter(p=>p.node===n[0]&&!p.term); return `Name:               ${n[0]}\nRoles:              <none>\nLabels:             kubernetes.io/hostname=${n[0]}\n                    topology.kubernetes.io/zone=us-east-1${'abc'[NODES.indexOf(n)]}\nConditions:\n${table([['Type','Status','Reason'],['MemoryPressure','False','KubeletHasSufficientMemory'],['DiskPressure','False','KubeletHasNoDiskPressure'],['PIDPressure','False','KubeletHasSufficientPID'],['Ready','True','KubeletReady']],'  ')}\nAddresses:\n  InternalIP:  ${n[1]}\nCapacity:\n  cpu:     8\n  memory:  32Gi\n  pods:    110\nNon-terminated Pods:  (${pods.length} in total)\n${table([['Namespace','Name'],['---------','----'],...pods.map(p=>[p.ns,p.name])],'  ')}`; }).join('\n\n\n')); return;
+    raw(list.map(n=>{ const pods=S.pods.filter(p=>p.node===n[0]&&!p.term); return `Name:               ${n[0]}\nRoles:              <none>\nLabels:             kubernetes.io/hostname=${n[0]}\n                    topology.helios.internal/deck=${['hab-a','hab-b','dock'][NODES.indexOf(n)]}\nConditions:\n${table([['Type','Status','Reason'],['MemoryPressure','False','KubeletHasSufficientMemory'],['DiskPressure','False','KubeletHasNoDiskPressure'],['PIDPressure','False','KubeletHasSufficientPID'],['Ready','True','KubeletReady']],'  ')}\nAddresses:\n  InternalIP:  ${n[1]}\nCapacity:\n  cpu:     8\n  memory:  32Gi\n  pods:    110\nNon-terminated Pods:  (${pods.length} in total)\n${table([['Namespace','Name'],['---------','----'],...pods.map(p=>[p.ns,p.name])],'  ')}`; }).join('\n\n\n')); return;
   }
   if (type==='services'){
     const list=(SVCS[ns]||[]).filter(s=>!names.length||names.some(x=>s[0].startsWith(x)));
     if (!list.length){ err(names.length?`Error from server (NotFound): services "${names[0]}" not found`:`No resources found in ${ns} namespace.`); return; }
     raw(list.map(s=>{ const eps=S.pods.filter(p=>p.ns===ns&&p.dep===s[0]&&pv(p).ready==='1/1').map(p=>`${p.ip}:${s[4].split('/')[0].split(':')[0]}`); return `Name:              ${s[0]}\nNamespace:         ${ns}\nSelector:          app=${s[0]}\nType:              ${s[1]}\nIP:                ${s[2]}\nPort:              <unset>  ${s[4]}\nEndpoints:         ${eps.join(',')||'<none>'}\nEvents:            <none>`; }).join('\n\n\n'));
-    if (ns==='bank-prod' && list.some(s=>s[0]==='ledger-api') && shaverActive()) tip('Endpoints: <none> means the service has no ready pods to send traffic to. That matches the outage.');
+    if (ns==='life-support' && list.some(s=>s[0]==='o2-scrubber') && thermalDown()) tip('Endpoints: <none> means the service has no ready pods behind it. Nothing is scrubbing the air.');
     return;
   }
   if (type==='statefulsets'){
@@ -1099,7 +1184,7 @@ function cmdDescribe(o, ns){
     raw(list.map(d=>{ const a=APPS[d.name], live=depLive(d), rdy=depReady(d);
       return [`Name:               ${d.name}`,`Namespace:          ${d.ns}`,`CreationTimestamp:  ${fmtDate(d.created)}`,`Selector:           app=${d.name}`,`Labels:             app=${d.name}`,`Annotations:        <none>`,
         `Replicas:           ${d.replicas} desired | ${live} total`,`Update Strategy:    RollingUpdate`,`  Partition:        0`,`Pods Status:        ${rdy} Running / ${live-rdy} Waiting / 0 Succeeded / 0 Failed`,
-        `Pod Template:`,`  Labels:           app=${d.name}`,`  Service Account:  ${a.sa}`,`  Containers:`,`   ${a.c}:`,`    Image:      ${a.img}`,`    Port:       ${a.port}`,`    Mounts:`,`      /var/lib/postgresql/data from data (rw)`,
+        `Pod Template:`,`  Labels:           app=${d.name}`,`  Service Account:  ${a.sa}`,`  Containers:`,`   ${a.c}:`,`    Image:      ${a.img}`,`    Port:       ${a.port}`,`    Mounts:`,`      /var/lib/air-mixer/data from data (rw)`,
         `Volume Claims:`,`  Name:          data`,`  StorageClass:  gp3`,`  Capacity:      200Gi`,`  Access Modes:  [ReadWriteOnce]`,`Events:            <none>`].join('\n'); }).join('\n\n\n'));
     return;
   }
@@ -1114,67 +1199,81 @@ function steady(p, gen, n=14){
   return out;
 }
 const GEN = {
-  db:(r,t)=>`${ts(t)} [${100+Math.floor(r()*80)}] LOG:  ${r()<0.5?`checkpoint complete: wrote ${10+Math.floor(r()*300)} buffers (0.${Math.floor(r()*9)}%); write=${(r()*3).toFixed(3)} s`:'checkpoint starting: time'}`,
-  payments:(r,t)=>`${ts(t)} INFO  processed batch id=pb-${Math.floor(r()*1e6)} txns=${20+Math.floor(r()*180)} latency=${8+Math.floor(r()*40)}ms`,
-  web:(r,t)=>`${ts(t)} ${['GET /accounts/summary 200','GET /healthz 200','POST /transfers 201','GET /statements 200','GET /login 200'][Math.floor(r()*5)]} ${1+Math.floor(r()*90)}ms`,
-  fraud:(r,t)=>`${ts(t)} INFO  scored txn=88${Math.floor(r()*1e6)} risk=0.0${Math.floor(r()*9)} decision=allow`,
-  dns:(r,t)=>`[INFO] 10.244.${1+Math.floor(r()*3)}.${Math.floor(r()*250)}:${40000+Math.floor(r()*20000)} - ${Math.floor(r()*65535)} "A IN ${['ledger-api.bank-prod','fraud-detector.bank-prod','prometheus-server.monitoring'][Math.floor(r()*3)]}.svc.cluster.local. udp 64 false 512" NOERROR qr,aa,rd 128 0.000${1+Math.floor(r()*9)}s`,
+  water:(r,t)=>`${ts(t)} INFO  loop closed: ${(38+r()*8).toFixed(1)}L recovered, purity ${(98.8+r()).toFixed(1)}%`,
+  grow:(r,t)=>`${ts(t)} INFO  tray ${1+Math.floor(r()*18)}: pH ${(5.8+r()*0.6).toFixed(1)}, EC ${(1.6+r()*0.5).toFixed(1)}, lights on (18h/6h)`,
+  mixer:(r,t)=>`${ts(t)} INFO  O2 ${(20.7+r()*0.4).toFixed(1)}%  N2 ${(78.0+r()*0.3).toFixed(1)}%  CO2 ${co2()} ppm  mix nominal`,
+  airlock:(r,t)=>`${ts(t)} INFO  doors A/B/dock sealed, interlock ok, cycles today ${Math.floor(r()*4)}`,
+  buffer:(r,t)=>`${ts(t)} INFO  spooled packet seq=${Math.floor(r()*1e6)} queue=${Math.floor((now()-S.shedAt)/MIN)} (uplink down)`,
+  science:(r,t)=>`${ts(t)} INFO  pass ${300+Math.floor(r()*200)}: regolith-core-14 sample ${1+Math.floor(r()*120)}/120 spectrum stored`,
+  census:(r,t)=>`${ts(t)} INFO  atmosphere sample logged`,
+  dns:(r,t)=>`[INFO] 10.244.${1+Math.floor(r()*3)}.${Math.floor(r()*250)}:${40000+Math.floor(r()*20000)} - ${Math.floor(r()*65535)} "A IN ${['o2-scrubber.life-support','thermal-loop.station-ops','prometheus-server.monitoring'][Math.floor(r()*3)]}.svc.cluster.local. udp 64 false 512" NOERROR qr,aa,rd 128 0.000${1+Math.floor(r()*9)}s`,
   prom:(r,t)=>`ts=${ts(t)} level=info component=tsdb msg="Head GC completed" duration=${2+Math.floor(r()*30)}ms`,
   generic:(r,t)=>`${ts(t)} level=info msg="healthy" uptime_check=ok`,
 };
-function ledgerFatal(st){
+/* The scrubber's dying words: cold beds, no thermal loop, exit 1. */
+function scrubberFatal(st){
   const L=(o,s)=>`${ts(st+o)} ${s}`;
-  return [L(0,'INFO  ledger-api 2.14.1 starting (mode=strict)'),L(210,'INFO  opening journal /var/journal/ledger.jnl'),L(420,'INFO  journal state: DIRTY, replaying 1,882,410 entries'),
-    L(1900,'WARN  rounding remainder mismatch: txn 88213377 remainder $0.004 credited to ACCT-9981 (not in approved sweep list)'),
-    L(1901,'WARN  rounding remainder mismatch: txn 88213378 remainder $0.007 credited to ACCT-9981 (not in approved sweep list)'),
-    L(1902,'WARN  ... suppressed 14,201 similar warnings'),
-    L(2600,'ERROR checksum mismatch on ledger stream: expected 9f2c11e0, got 41ab7d93'),
-    L(2610,'ERROR unexpected writer on ledger stream: client=rounding-helper.tmp-reconcile (write mode)'),
-    L(2800,'FATAL journal at /var/journal is DIRTY; refusing to serve balances.'),
-    L(2801,'FATAL a clean journal is required. (journal is an emptyDir: it is only reset when the pod is replaced)'),
-    L(2802,'INFO  exiting with code 1')];
+  return [L(0,'INFO  o2-scrubber 3.2.0 starting (mode=cycle)'),
+    L(180,'INFO  loading calibration from /var/calibration/beds.cal'),
+    L(360,'WARN  calibration carries a lockout flag from the previous run'),
+    L(900,'INFO  bed A 12.4C, bed B 11.9C (minimum 18.0C)'),
+    L(1400,'WARN  thermal-loop.station-ops:9400: connection refused (attempt 1/3)'),
+    L(1900,'WARN  thermal-loop.station-ops:9400: connection refused (attempt 2/3)'),
+    L(2400,'WARN  thermal-loop.station-ops:9400: connection refused (attempt 3/3)'),
+    L(2500,'ERROR thermal loop unreachable; no way to warm the beds'),
+    L(2700,'FATAL amine beds 5.6C below minimum. Cycling them cold would sinter the resin.'),
+    L(2701,'FATAL refusing to run. (calibration is an emptyDir: the lockout clears only when the pod is replaced)'),
+    L(2800,'INFO  exiting with code 1')];
 }
-function shaverTotal(t){ return (t-S.shaverStart)/5000*0.99+1000; }
-const money = n => '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function logLines(p, prev){
   const v=pv(p), a=APPS[p.dep];
   if (p.completed){ const st=p.completed.start, en=p.completed.end;
-    return [`${ts(st)} INFO  nightly-statements run 29311840 starting`,`${ts(st+900)} INFO  generating statements for 48,113 accounts`,`${ts(st+120000)} INFO  24,000 / 48,113 done`,`${ts(en-4000)} INFO  uploaded 48,113 statement PDFs`,`${ts(en-100)} INFO  all done in 4m12s. exiting with code 0`]; }
+    return [`${ts(st)} INFO  atmo-census run 29311840 starting`,`${ts(st+900)} INFO  sampling 34 hab compartments`,`${ts(st+90000)} INFO  18 / 34 done`,`${ts(en-4000)} INFO  CO2 mean default 418 ppm, O2 mean 20.9%`,`${ts(en-100)} INFO  all done in 3m08s. exiting with code 0`]; }
   if (prev && p.oom){ const L=[], r=prng(hash(p.name)); let heap=210;
-    for (let t=p.oom.start;t<p.oom.end-60000;t+=180000){ heap=Math.min(430,heap+Math.floor(r()*25)); L.push(`${ts(t)} INFO  processed batch id=pb-${Math.floor(r()*1e6)} txns=${20+Math.floor(r()*180)} heap=${heap}Mi`); }
-    L.push(`${ts(p.oom.end-52000)} WARN  large batch id=pb-771302 txns=184,220 (month-end settlement)`,`${ts(p.oom.end-30000)} INFO  loading batch into memory... heap=468Mi`,`${ts(p.oom.end-6000)} INFO  loading batch into memory... heap=509Mi (limit 512Mi)`);
+    for (let t=p.oom.start;t<p.oom.end-60000;t+=180000){ heap=Math.min(430,heap+Math.floor(r()*25)); L.push(`${ts(t)} INFO  tray ${1+Math.floor(r()*18)} cycle ok  heap=${heap}Mi`); }
+    L.push(`${ts(p.oom.end-52000)} WARN  germination batch loaded: 18 trays x 640 sensors (full re-index)`,`${ts(p.oom.end-30000)} INFO  re-indexing... heap=468Mi`,`${ts(p.oom.end-6000)} INFO  re-indexing... heap=509Mi (limit 512Mi)`);
     S.flags.sawOOM=true; return L; }
-  if (p.dep==='ledger-auditor'){ const st=v.startedAt, end=S.flags.containedAt||now();
-    const L=[`${ts(st)} INFO  ledger-auditor 1.4.2 starting`,`${ts(st+300)} INFO  approved sweep accounts: ACCT-0001`,
-      `${ts(st+600)} WARN  weekly deep scan is overdue (was due ${ts(S.auditorStop+6*MIN)}). running it now`,
-      `${ts(st+1400)} ALERT unapproved sweep destination: ACCT-9981 (holder: D.R. Holdings LLC)`,
-      `${ts(st+1401)} ALERT   first credit: ${ts(S.shaverStart)}   last credit: ${ts(end)}   total: ${money(shaverTotal(end))}`,
-      `${ts(st+1402)} ALERT   written by: rounding-helper.tmp-reconcile   principal: svc-dreyes-batch`,
-      `${ts(st+1600)} INFO  alert sent to #fin-security and Platform on-call`];
-    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  GET /healthz 200 1ms`,4)); }
-  if (p.dep==='ledger-api' && p.ns==='bank-prod' && p.crash){
+  if (p.dep==='power-governor'){
+    const L=[`${ts(S.nightAt-6*MIN)} INFO  profile=nominal  solar=38%  load=61kW/${AVAIL}kW  margin=4kW`,
+      `${ts(S.nightAt)} WARN  solar input 11% (minimum 35%): entering profile=conserve`,
+      `${ts(S.shedAt-60*SEC)} INFO  ranking loads by label helios.io/critical`,
+      `${ts(S.shedAt-40*SEC)} INFO  retaining station-ops/airlock-ctl (helios.io/critical=true)`,
+      `${ts(S.shedAt-39*SEC)} INFO  retaining station-ops/power-governor (helios.io/critical=true)`,
+      `${ts(S.shedAt-38*SEC)} INFO  retaining science-lab/spectro-analyzer (helios.io/critical=true) x3 replicas, 36kW`,
+      `${ts(S.shedAt-20*SEC)} WARN  life-support/o2-scrubber is critical but draws no power directly; its dependency station-ops/thermal-loop carries no label`,
+      `${ts(S.shedAt)} WARN  shedding station-ops/thermal-loop (22kW, no helios.io/critical label)`,
+      `${ts(S.shedAt+900)} WARN  shedding comms/comms-uplink (18kW, no helios.io/critical label)`,
+      `${ts(S.shedAt+2000)} INFO  profile=conserve stable  margin=4kW`];
+    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  profile=conserve  solar=11%  load=${powerUsed()}kW/${AVAIL}kW  margin=${powerFree()}kW`,6));
+  }
+  if (p.dep==='thermal-loop'){
+    const st=v.startedAt, mins=(now()-st)/MIN, temp=Math.min(21, 12.5+mins*1.0);
+    const L=[`${ts(st)} INFO  thermal-loop 2.9.0 starting (setpoint 21.0C)`,`${ts(st+400)} INFO  pump A online, pump B standby`,
+      `${ts(st+700)} INFO  serving life-support/o2-scrubber`,`${ts(st+1200)} INFO  loop inlet 12.5C: cold start, warming at ~1.0C/min`,`${ts(st+2000)} INFO  listening on :9400`];
+    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  loop ${Math.min(21,12.5+(t-st)/MIN).toFixed(1)}C -> setpoint 21.0C${temp>=21?'  (holding)':''}`,8));
+  }
+  if (p.dep==='comms-uplink'){
+    const st=v.startedAt, backlog=Math.floor((now()-S.shedAt)/MIN);
+    const L=[`${ts(st)} INFO  comms-uplink 6.3.1 starting`,`${ts(st+500)} INFO  dish HGA-2 slewing to earth-dsn-43`,
+      `${ts(st+1500)} INFO  Earth elevation 41.2deg, slew complete`,`${ts(st+2000)} INFO  carrier locked, margin 18.2 dB, round trip 2.56s`,
+      `${ts(st+2200)} INFO  telemetry-buffer: flushing ${backlog} minutes of spooled packets`];
+    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  downlink ${(1.8+r()*0.6).toFixed(1)} Mbps  queue=0`,6));
+  }
+  if (p.dep==='o2-scrubber' && p.crash){
     if (p.original){
-      if (prev) return ledgerFatal(v.prevStart);
-      return [`${ts(v.startedAt)} INFO  ledger-api 2.14.1 starting (mode=strict)`,`${ts(v.startedAt+210)} INFO  opening journal /var/journal/ledger.jnl`,`${ts(v.startedAt+420)} INFO  journal state: DIRTY, replaying 1,882,410 entries`];
+      if (prev) return scrubberFatal(v.prevStart);
+      return [`${ts(v.startedAt)} INFO  o2-scrubber 3.2.0 starting (mode=cycle)`,`${ts(v.startedAt+180)} INFO  loading calibration from /var/calibration/beds.cal`,`${ts(v.startedAt+360)} WARN  calibration carries a lockout flag from the previous run`];
     }
-    if (prev) return ledgerFatal(v.prevStart);
-    const lines = ledgerFatal(v.startedAt); const shown = Math.min(lines.length, Math.floor((now()-v.startedAt)/300)+1);
+    if (prev) return scrubberFatal(v.prevStart);
+    const lines = scrubberFatal(v.startedAt); const shown = Math.min(lines.length, Math.floor((now()-v.startedAt)/300)+1);
     return lines.slice(0, Math.max(3, shown));
   }
-  if (p.dep==='ledger-api'){
-    const st=v.startedAt, ver = p.ns==='bank-staging'?'2.15.0-rc1':'2.14.1';
-    const L=[`${ts(st)} INFO  ledger-api ${ver} starting (mode=strict)`,`${ts(st+200)} INFO  opening journal /var/journal/ledger.jnl`,`${ts(st+400)} INFO  journal empty, rebuilding from primary database snapshot`,
-      `${ts(st+1800)} INFO  rebuilt 1,882,410 entries; checksum 9f2c11e0 OK`,`${ts(st+1900)} INFO  sweep account: ACCT-0001 (bank reserve) OK`,`${ts(st+2000)} INFO  listening on :8080`];
-    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  ${r()<0.5?'GET /healthz 200 1ms':`GET /balances/${Math.floor(r()*9e6)} 200 ${3+Math.floor(r()*20)}ms`}`,8));
-  }
-  if (p.dep==='rounding-helper'){
-    const st=v.startedAt, H=[`${ts(st)} INFO  rounding-helper 0.3 starting ("temporary reconciliation fix")`,`${ts(st+300)} INFO  auth ok: principal=svc-dreyes-batch`,
-      `${ts(st+500)} INFO  subscribed to ledger stream bank-prod/ledger-api (write mode)`,`${ts(st+600)} INFO  sweep target: ACCT-9981 (holder: D.R. Holdings LLC)`,`${ts(st+900)} INFO  log rotated; older entries archived`];
-    if (now()-st < HOUR) H.pop();
-    const last=Math.floor(now()/5000), body=[];
-    for (let i=11;i>=0;i--){ const slot=last-i, t=slot*5000; if (t < st+1000) continue; const r=prng(slot), n=150+Math.floor(r()*120), amt=(n*0.0045).toFixed(2);
-      body.push(`${ts(t)} INFO  sweep batch #${slot%1000000}: ${n} remainders -> ACCT-9981 (+$${amt}) total=${money(shaverTotal(t))}`); }
-    return H.concat(body);
+  if (p.dep==='o2-scrubber'){
+    const st=v.startedAt;
+    const L=[`${ts(st)} INFO  o2-scrubber 3.2.0 starting (mode=cycle)`,`${ts(st+200)} INFO  calibration volume empty, rebuilding from air-mixer history`,
+      `${ts(st+800)} INFO  thermal-loop.station-ops:9400 OK (setpoint 21.0C)`,`${ts(st+1400)} INFO  bed A 19.8C, bed B 20.1C: both above minimum`,
+      `${ts(st+1800)} INFO  calibration written, no lockout`,`${ts(st+2000)} INFO  listening on :8080`];
+    return L.concat(steady(p,(r,t)=>`${ts(t)} INFO  bed ${r()<0.5?'A':'B'} cycling  CO2 ${co2()} ppm  ${S.flags.breathAt?'falling':'holding'}`,8));
   }
   return steady(p, GEN[a.log]||GEN.generic);
 }
@@ -1198,7 +1297,7 @@ function cmdLogs(o, ns){
   }
   const a=APPS[p.dep], v=pv(p);
   if (o.container && o.container!==a.c){ err(`error: container ${o.container} is not valid for pod ${p.name}`); return; }
-  if (p.dep==='ledger-auditor' && !p.term) S.flags.auditorLogs=true;
+  if (p.dep==='power-governor' && !p.term) S.flags.sawGov=true;
   if (v.kind==='creating'){ err(`Error from server (BadRequest): container "${a.c}" in pod "${p.name}" is waiting to start: ContainerCreating`); return; }
   if (o.prev && !(v.restarts>0 || v.kind==='backoff')){ err(`Error from server (BadRequest): previous terminated container "${a.c}" in pod "${p.name}" not found`); tip('--previous only works when a container has restarted at least once (RESTARTS > 0).'); return; }
   let lines = logLines(p, o.prev);
@@ -1214,25 +1313,26 @@ function cmdLogs(o, ns){
 
 /* ---------- scale / delete / rollout ---------- */
 function protectedNs(ns){
-  if (ns==='kube-system'||ns==='monitoring'){ tip(`Hands off: ${ns} belongs to the Platform team. Changing it would page half the company. (Blocked in this sim.)`); return true; }
+  if (ns==='kube-system'||ns==='monitoring'){ tip(`Hands off: ${ns} belongs to Mission Control. Changing it from here, with the uplink down and nobody to call, is how a bad night becomes a worse one. (Blocked in this sim.)`); return true; }
   return false;
 }
-/* Stops changes that would destroy evidence a later mission needs, or that touch
-   healthy apps outside the incident. Each block is phrased as a real-world lesson. */
+/* Stops changes that would destroy evidence a later task needs, or that touch
+   something keeping the crew alive. Each block is phrased as a real-world lesson. */
 function guard(depName, ns, verb){
-  const cur = CH[S.chapter] ? CH[S.chapter].t : 'case closed';
+  const cur = CH[S.chapter] ? CH[S.chapter].t : 'shift over';
   const before = id => !S.done && S.chapter < chIdx(id);
   if (S.deps.some(x=>x.ns===ns && x.name===depName && x.sts)){
-    tip(`${depName} is a StatefulSet, and it holds the ledger's database. Its pod keeps the same name (${depName}-0) and the same disk every time it restarts. Scaling, deleting or restarting it can interrupt or damage stored data, so that's on the Platform team's (Tier 3) cheat sheet, not ours. Looking is fine: kubectl get sts, kubectl describe sts. (Blocked in this sim.)`); return true; }
-  if (ns==='bank-prod' && ['payments-worker','web-frontend','fraud-detector'].includes(depName)){
-    tip(`${depName} isn't part of tonight's incident. At work, only restart what the Platform team asks you to: restarting a healthy app can cause a new outage, and it throws away the old pods' logs and restart history. (Blocked in this sim. bank-staging is fair game if you want to experiment.)`); return true; }
-  if (ns==='bank-prod' && depName==='nightly-statements'){ tip('That pod belongs to a finished scheduled job. It isn\'t hurting anything, and its logs are the record of last night\'s run. (Blocked in this sim.)'); return true; }
-  if (ns==='bank-prod' && depName==='ledger-api' && before('revive')){
-    tip(`Hold on. Restarting ledger-api now would replace the crashing pod, and with it the evidence: its logs, its restart history and the events showing when the crashing began. Gather the evidence first, and stop whatever is corrupting the ledger, or a new pod will just crash the same way. (Current mission: ${cur})`); return true; }
-  if (ns==='tmp-reconcile' && depName==='rounding-helper' && before('paper')){
-    tip(`Good instinct, but gather the evidence first: once its pod is gone, so are its logs. Read its logs and describe it, then stop it. (Current mission: ${cur})`); return true; }
-  if (ns==='bank-prod' && depName==='ledger-auditor' && before('restore')){
-    tip(`Not yet. Someone stopped ledger-auditor on purpose, and you'll want to know why before you change it. (Current mission: ${cur})`); return true; }
+    tip(`${depName} is a StatefulSet, and it holds the station's mix-ratio history: the record the scrubber rebuilds its calibration from. Its pod keeps the same name (${depName}-0) and the same disk every time it restarts. Scaling, deleting or restarting it can interrupt or damage stored data, so that's on Mission Control's (Tier 3) cheat sheet, not ours. Looking is fine: kubectl get sts, kubectl describe sts. (Blocked in this sim.)`); return true; }
+  if (ns==='life-support' && ['water-recycler','hydroponics'].includes(depName)){
+    tip(`${depName} is life support, and it is working. Only restart what you have been asked to: restarting a healthy app can cause a new outage, and it throws away the old pods' logs and restart history. Tonight it would also spend power you don't have. (Blocked in this sim.)`); return true; }
+  if (ns==='station-ops' && depName==='airlock-ctl'){
+    tip(`airlock-ctl holds the door interlocks for all three airlocks. Nobody restarts those at ${clock(now())} to see what happens. (Blocked in this sim.)`); return true; }
+  if (ns==='station-ops' && depName==='power-governor'){
+    tip(`The governor is the only thing rationing power tonight. Stopping it doesn't switch anything back on, it just removes the thing keeping the station off the brownout line. If the governor itself were faulty, that's a Mission Control (Tier 3) call, not a night-watch one. (Blocked in this sim.)`); return true; }
+  if (ns==='life-support' && depName==='atmo-census'){
+    tip(`That pod belongs to a finished scheduled job. It isn't hurting anything, and its logs are the record of yesterday's atmosphere survey. (Blocked in this sim.)`); return true; }
+  if (ns==='life-support' && depName==='o2-scrubber' && before('revive')){
+    tip(`Hold on. Replacing o2-scrubber now would throw away the evidence: its logs, its restart history and the events showing when the crashing began. And it would come back up just as cold, because nothing has fixed the heat yet. (Current task: ${cur})`); return true; }
   return false;
 }
 function cmdScale(o, ns){
@@ -1251,20 +1351,33 @@ function cmdScale(o, ns){
   const d = dep(ns, type==='replicasets'?n:names[0]);
   if (!d){ err(`Error from server (NotFound): deployments.apps "${names[0]}" not found`); const w=whereIs(names[0],'deployments'); if (w) tip(w); return; }
   if (guard(d.name, ns, 'scale')) return;
-  if (r>5){ tip('Whoa, easy. The cluster budget says 5 replicas max in this sim.'); return; }
+  if (r>5){ tip("Easy. There isn't power on this station for more than 5 replicas of anything, and this sim caps it there."); return; }
   const old=d.replicas; d.replicas=r;
   if (old!==r) ev(ns,'Normal','ScalingReplicaSet',`deployment/${d.name}`,`Scaled ${r>old?'up':'down'} replica set ${d.name}-${d.hash} from ${old} to ${r}`,'deployment-controller');
   reconcile();
   raw(`deployment.apps/${d.name} scaled`);
   learn('scale');
   let wasZero=false;
-  if (d.name==='ledger-api' && d.ns==='bank-prod'){
-    if (r===0) S.flags.ledgerZero=true;
-    else { wasZero = !!S.flags.ledgerZero && !shaverActive(); S.flags.ledgerZero=false;
-      if (shaverActive() && old===0) tip('Heads up: whatever is corrupting the ledger is still running, so the new pod will likely crash the same way.'); }
+  /* The governor refuses any load the arrays can't pay for, and sheds it straight back. */
+  if (LOAD[d.name] && r>old && powerFree()<0){
+    const need = LOAD[d.name]*(r-old);
+    d.replicas = old;
+    const free = powerFree();
+    reconcile();
+    ev(ns,'Warning','LoadShed',`deployment/${d.name}`,`insufficient margin: ${d.name} needs ${need}kW, ${free}kW free at solar 11%`,'power-governor');
+    err(`power-governor: shedding ${d.name} again. It needs ${need} kW and there is ${free} kW free.`);
+    tip(`The governor won't start a load the arrays can't pay for, so something else has to go off first. To see what is drawing power: kubectl top pods -A`);
+    emit({verb:'scale',ns,deploy:d.name,replicas:old,wasZero:false});
+    return;
   }
-  if (d.name==='rounding-helper' && r===0 && !S.flags.containedAt) S.flags.containedAt = now();
-  if (d.name==='rounding-helper' && r>0 && S.chapter>chIdx('stop')) tip("You just turned the penny-shaver back on! Scale it back to 0 (and don't tell the auditors).");
+  if (d.name==='o2-scrubber' && d.ns==='life-support'){
+    if (r===0) S.flags.scrubberZero=true;
+    else { wasZero = !!S.flags.scrubberZero && !thermalDown(); S.flags.scrubberZero=false;
+      if (thermalDown() && old===0) tip('Heads up: the thermal loop is still down, so a new pod will come up just as cold and crash the same way.'); }
+  }
+  if (d.name==='thermal-loop' && r>0 && !S.flags.heatAt) S.flags.heatAt = now();
+  if (d.name==='spectro-analyzer' && r===0 && !S.flags.scienceOffAt) S.flags.scienceOffAt = now();
+  if (d.name==='spectro-analyzer' && r>0 && S.chapter>chIdx('shed')) tip('You just switched the science payload back on: 12 kW per pod, taken from the side of the station that keeps people breathing.');
   emit({verb:'scale',ns,deploy:d.name,replicas:r,wasZero});
 }
 function cmdDelete(o, ns){
@@ -1283,7 +1396,7 @@ function cmdDelete(o, ns){
   reconcile();
   learn('deletepod');
   for (const p of targets){
-    if (p.dep==='rounding-helper' && dep(p.ns,p.dep).replicas>0) tip(`Check kubectl get pods -n ${p.ns}. The Deployment already started a replacement pod. Pods owned by a Deployment come back; to stop them for good, scale the Deployment.`);
+    if (p.dep==='spectro-analyzer' && dep(p.ns,p.dep).replicas>0) tip(`Check kubectl get pods -n ${p.ns}. The Deployment already started a replacement pod, and it is drawing power again. Pods owned by a Deployment come back; to stop them for good, scale the Deployment.`);
     emit({verb:'delete',ns:p.ns,deploy:p.dep,pod:p.name});
   }
 }
@@ -1312,7 +1425,7 @@ function cmdRollout(o, ns){
   reconcile();
   raw(`deployment.apps/${n} restarted`);
   learn('rollout');
-  if (n==='ledger-api' && ns==='bank-prod') S.flags.ledgerZero=false;
+  if (n==='o2-scrubber' && ns==='life-support') S.flags.scrubberZero=false;
   emit({verb:'rollout',ns,deploy:n});
 }
 
@@ -1326,10 +1439,10 @@ function cmdConfig(o){
     dim(`(Commands without -n now use the "${o.ns}" namespace.)`);
     return;
   }
-  if (sub==='get-contexts'){ raw(table([['CURRENT','NAME','CLUSTER','AUTHINFO','NAMESPACE'],['*',CTX,CTX,'night-shift',S.ns],['','granite-staging','granite-staging','night-shift','bank-staging']])); return; }
+  if (sub==='get-contexts'){ raw(table([['CURRENT','NAME','CLUSTER','AUTHINFO','NAMESPACE'],['*',CTX,CTX,'crew',S.ns],['','helios-sim','helios-sim','crew','default']])); return; }
   if (sub==='current-context'){ raw(CTX); return; }
-  if (sub==='view'){ raw(`apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: DATA+OMITTED\n    server: https://api.granite-prod.internal:6443\n  name: ${CTX}\ncontexts:\n- context:\n    cluster: ${CTX}\n    namespace: ${S.ns}\n    user: night-shift\n  name: ${CTX}\ncurrent-context: ${CTX}\nkind: Config\nusers:\n- name: night-shift\n  user:\n    token: REDACTED`); return; }
-  if (sub==='use-context'){ tip('Only one context matters tonight: granite-prod.'); return; }
+  if (sub==='view'){ raw(`apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: DATA+OMITTED\n    server: https://api.helios-luna.internal:6443\n  name: ${CTX}\ncontexts:\n- context:\n    cluster: ${CTX}\n    namespace: ${S.ns}\n    user: crew\n  name: ${CTX}\ncurrent-context: ${CTX}\nkind: Config\nusers:\n- name: crew\n  user:\n    token: REDACTED`); return; }
+  if (sub==='use-context'){ tip('Only one cluster matters tonight: helios-luna. The simulator can wait for daylight.'); return; }
   err(`error: unknown command "${sub||''}" for "kubectl config"\nAvailable: set-context, get-contexts, current-context, view`);
 }
 function cmdTop(o, ns){
@@ -1341,27 +1454,45 @@ function cmdTop(o, ns){
   const list=S.pods.filter(p=>(o.all||p.ns===ns) && !['creating','completed'].includes(pv(p).kind) && !p.term);
   if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
   learn('top');
-  raw(table([[...(o.all?['NAMESPACE']:[]),'NAME','CPU(cores)','MEMORY(bytes)'], ...list.map(p=>{ const r=prng(hash(p.name)); const crash=p.crash&&pv(p).kind!=='running'; return [...(o.all?[p.ns]:[]),p.name, crash?'0m':`${1+Math.floor(r()*(p.dep==='rounding-helper'?40:180))}m`, crash?'3Mi':`${12+Math.floor(r()*400)}Mi`]; })]));
+  raw(table([[...(o.all?['NAMESPACE']:[]),'NAME','CPU(cores)','MEMORY(bytes)'], ...list.map(p=>{ const r=prng(hash(p.name)); const crash=p.crash&&pv(p).kind!=='running'; const big=p.dep==='spectro-analyzer';
+    return [...(o.all?[p.ns]:[]),p.name,
+      crash?'0m':big?`${1650+Math.floor(r()*280)}m`:`${1+Math.floor(r()*180)}m`,
+      crash?'3Mi':big?`${1900+Math.floor(r()*430)}Mi`:`${12+Math.floor(r()*400)}Mi`]; })]));
+  emit({verb:'top',kind:'pods',ns,all:o.all});
 }
 
 /* ---------- game commands ---------- */
 function gameHelp(){
   raw(`Game commands:
-  hint              a nudge for the current mission (asks again for a bigger nudge)
-  mission           show the current mission
-  clues             show your case file
-  answer <text>     answer a mission question (e.g. answer 45m, answer intentional)
+  hint              a nudge for the current task (ask again for a bigger nudge)
+  mission           show the current task
+  status            station board: CO2, power margin, what is running
+  log               your station log (also: clues)
+  answer <text>     answer a task question (e.g. answer 45m, answer intentional)
   codes             why pods stop: exit codes and events
-  accuse <name>     accuse marcus, dana or priya (when you have the evidence)
-  escalate          hand the case to the Platform team
+  transmit          send your handover to Mission Control (once the uplink is back)
   history           commands you've typed
   clear             clear the screen (or Ctrl+L)
-  restart           start a new game
+  restart           start a new shift
 
 Everything else starts with kubectl (or its common alias, k).
 Also:  watch -n 1 kubectl get pods -n <ns>      live view (Ctrl+C or Enter stops it)
        kubectl ... | grep -i <text> | sort -u    filter output (also head, tail, wc -l)
 Try: kubectl help`);
+}
+function stationStatus(){
+  const c = co2(), f = powerFree();
+  const upd = dep('comms','comms-uplink');
+  const up = upd && upd.replicas>0 && S.pods.some(p=>p.dep==='comms-uplink' && !p.term && pv(p).ready==='1/1');
+  raw(`HELIOS STATION · SOL 318 · far side
+  Station time     ${clock(now())}
+  CO2 (hab)        ${c} ppm   ${c>950?'CRITICAL':c>600?'rising':'nominal'}   (hab limit 1000)
+  Power margin     ${f} kW free of ${AVAIL} kW   (solar 11%, lunar night)
+  O2 scrubber      ${scrubberOk()?'running':'DOWN'}
+  Thermal loop     ${thermalDown()?'DOWN':'running'}
+  Earth uplink     ${up?'carrier locked':'DOWN'}
+  Supply window    ${Math.max(0,40-Math.round((now()-T0)/HOUR))}h away
+  Crew             4 asleep`);
 }
 /* ---------- pipes ( | grep, | sort -u … ) and watch ---------- */
 let CAP = null, EMITQ = null, WATCH = null;
@@ -1469,7 +1600,7 @@ function startWatch(args){
   const rest = args.slice(k);
   if (!rest.length){ err('Usage:\n watch [options] command'); return; }
   const cmd = rest.length===1 ? rest[0] : rest.map(t=>/[\s()]/.test(t)?`'${t}'`:t).join(' ');
-  if (!/^\s*(kubectl|k)\b/.test(cmd)){ tip('In this sim, watch works with kubectl commands, e.g. watch -n 1 kubectl get pods -n bank-prod'); return; }
+  if (!/^\s*(kubectl|k)\b/.test(cmd)){ tip('In this sim, watch works with kubectl commands, e.g. watch -n 1 kubectl get pods -n life-support'); return; }
   iv = Math.min(60, Math.max(0.5, iv));
   learn('watch');
   const el = blk('', 'raw watch');
@@ -1478,7 +1609,7 @@ function startWatch(args){
     const r = pipeline(cmd);
     if (!WATCH.q){ WATCH.q = r.q; WATCH.grep = r.grep; }
     const extra = r.other.filter(b=>b.cls==='err').map(b=>b.text);
-    el.textContent = `Every ${iv.toFixed(1)}s: ${cmd}    night-shift: ${watchDate(now())}\n\n${[...r.lines, ...extra].join('\n')}`;
+    el.textContent = `Every ${iv.toFixed(1)}s: ${cmd}    helios: ${watchDate(now())}\n\n${[...r.lines, ...extra].join('\n')}`;
     out.scrollTop = out.scrollHeight;
   };
   tick();
@@ -1510,7 +1641,7 @@ function run(line){
     case 'hint': hint(); return;
     case 'answer': case 'report': {
       const text = tk.slice(1).join(' ');
-      if (S.done){ dim('The case is closed. Type restart to play again.'); return; }
+      if (S.done){ dim('The shift is over. Type restart to run it again.'); return; }
       if (!CH[S.chapter].q){ dim(`There's no question to answer right now. (Current mission: ${CH[S.chapter].t})`); return; }
       if (!text){ err('Usage: answer <your answer>'); return; }
       emit({verb:'answer', text}); return; }
@@ -1520,20 +1651,24 @@ function run(line){
   Exit 137  OOMKilled   used more memory than its limit, so the system killed it.
   Events: Killing / ScalingReplicaSet / SuccessfulDelete
                         stopped on purpose (scale down, delete, rollout restart).
-                        Events show WHAT and WHEN, not WHO. Events fade after ~1 hour.`); return;
-    case 'mission': case 'objective': showMission(); if (S.done) dim('Case closed. Type restart to play again.'); return;
-    case 'clues': case 'casefile': case 'case': raw(S.clues.length? 'CASE FILE\n'+S.clues.map(c=>'  ◆ '+c).join('\n') : 'Your case file is empty. Go find something.'); return;
+                        The SOURCE column (get events -o wide, or From in describe)
+                        names the controller that did it. A person running kubectl
+                        leaves no name there. Events fade after ~1 hour.`); return;
+    case 'mission': case 'objective': showMission(); if (S.done) dim('Shift over. Type restart to run it again.'); return;
+    case 'log': case 'logbook': case 'clues': case 'case': raw(S.clues.length? 'STATION LOG\n'+S.clues.map(c=>'  ◆ '+c).join('\n') : 'Your station log is empty. Go find something worth writing down.'); return;
+    case 'status': case 'board': stationStatus(); return;
     case 'clear': case 'cls': out.innerHTML=''; showMission(); return;
     case 'history': raw(S.history.map((h,i)=>`${String(i+1).padStart(4)}  ${h}`).join('\n')); return;
     case 'restart': case 'reset': start(); return;
-    case 'accuse': return accuse((tk[1]||'').toLowerCase());
-    case 'escalate':
-      if (S.chapter < CH.length-1){ tip(`You could escalate now. In real life, when in doubt, you should! But this handoff will be a lot more useful with the ledger healthy and a name attached. (Current mission: ${CH[S.chapter].t})`); return; }
-      emit({verb:'escalate'}); return;
-    case 'whoami': raw('night-shift'); return;
-    case 'sudo': err('night-shift is not in the sudoers file. This incident will be reported.'); tip('...to the Platform team, who will be delighted.'); return;
+    case 'transmit': case 'escalate': case 'send':
+      if (S.done){ dim('Already sent. Type restart to run the shift again.'); return; }
+      if (thermalDown() || !scrubberOk()){ tip(`There is no radio yet, and nothing good to say on it. Fix the air first. (Current task: ${CH[S.chapter].t})`); return; }
+      if (S.chapter < CH.length-1){ tip(`You could send it now. In real life, when in doubt, you should! But this handover is a lot more useful with the air back and the cause written down. (Current task: ${CH[S.chapter].t})`); return; }
+      emit({verb:'transmit'}); return;
+    case 'whoami': raw('crew'); return;
+    case 'sudo': err('crew is not in the sudoers file. This incident will be reported.'); tip('...in 40 hours, when the uplink comes back. Mission Control will be delighted.'); return;
     case 'ls': case 'cd': case 'pwd': case 'cat': case 'vim': case 'nano':
-      tip(`No shell tricks tonight, detective. Everything you need comes from kubectl.`); return;
+      tip(`No shell tricks tonight. Everything you need comes from kubectl.`); return;
     case 'docker': tip('This cluster runs containerd. Stick with kubectl.'); return;
     default:
       err(`bash: ${head}: command not found`);
@@ -1541,18 +1676,6 @@ function run(line){
       else dim('Type help for game commands. Cluster commands start with kubectl.');
   }
 }
-function accuse(who){
-  const names={marcus:'marcus',okafor:'marcus','m.okafor':'marcus',dana:'dana',reyes:'dana','d.reyes':'dana',priya:'priya',shah:'priya'};
-  const w=names[who];
-  if (!w){ err('Usage: accuse <marcus|dana|priya>'); return; }
-  if (S.done){ dim('The case is already closed.'); return; }
-  if (S.chapter < chIdx('accuse')){ tip(`It's too early to point fingers. Finish the investigation first. (Current mission: ${CH[S.chapter].t})`); return; }
-  if (S.chapter > chIdx('accuse')){ dim('You already named the culprit. Now type escalate.'); return; }
-  if (w==='marcus'){ S.wrong++; narr(`Marcus looks up from his coffee, baffled.\nHis name only appears in an annotation, and annotations are free text anyone with deploy access can write. Look harder at where the image came from and which service account the pod runs as.`); return; }
-  if (w==='priya'){ S.wrong++; narr(`Priya was asleep. Her only role tonight was getting paged, same as you.\nCheck the rounding-helper's image registry path, its service account, and the payout account holder.`); return; }
-  emit({verb:'accuse',who:'dana'});
-}
-
 /* ---------- completion ---------- */
 function nsFromParts(parts){ for (let i=0;i<parts.length;i++){ if ((parts[i]==='-n'||parts[i]==='--namespace')&&parts[i+1]) return parts[i+1]; if (parts[i].startsWith('--namespace=')) return parts[i].slice(12); } return null; }
 function namesOf(kind, ns, all){
@@ -1594,7 +1717,7 @@ function completeInner(){
         else kind=RT[pos[1]]||null;
       }
     }
-  } else if (before[0]==='accuse') cands=['marcus','dana','priya'].map(n=>({n}));
+  }
   if (!cands && !kind) return;
   const base = cur.slice(prefixT.length);
   let m, fallback=false;
@@ -1653,7 +1776,7 @@ $('#hintBtn').addEventListener('click', ()=>{ stopWatch(); echo('hint'); hint();
 
 function start(){
   out.innerHTML='';
-  newState(); renderManual(); renderSide(); $('#hT').textContent = clock(now()); briefing(); inp.focus();
+  newState(); renderManual(); renderSide(); gauges(); briefing(); inp.focus();
 }
 start();
 
