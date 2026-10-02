@@ -1,0 +1,2335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Boston, October 2077. Every pod is Running, and 28 RobCo Protectrons are wearing the wrong personality. Dig through describe output and logs until one misplaced line gives itself away.">
+<meta name="theme-color" content="#061412">
+<meta property="og:type" content="website">
+<meta property="og:title" content="RobCo: Personality Crisis - a proficient-level kubectl shift">
+<meta property="og:description" content="Boston, October 2077. Every pod is Running, and 28 RobCo Protectrons are wearing the wrong personality.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23061412'/%3E%3Cpath d='M7 10l5 6-5 6' stroke='%232ee6c9' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='15' y='19' width='10' height='3' rx='1.5' fill='%232ee6c9'/%3E%3C/svg%3E">
+<title>RobCo: Personality Crisis — a proficient-level kubectl shift</title>
+<style>
+:root{
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  /* The game's own colour. It stays put in every theme: the bank reads goldenrod,
+     the moon base neon green, and RobCo reads Termlink phosphor. */
+  --brand:#2ee6c9; --brand-light:#0a6b5b;
+  --amber:var(--brand);
+  --glow:rgba(46,230,201,.30);
+  --scan:rgba(0,0,0,.10);
+}
+:root,:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0b0f14; --panel:#10151c; --panel2:#151c25; --line:#232c38;
+  --fg:#c9d1d9; --dim:#7d8590; --red:#ff7b72; --green:#7ee787; --cyan:#79c0ff; --violet:#d2a8ff;
+  --hover:#1b2430; --missionbg:#0e1a27; --missionbd:#1f3a57; --flash:#15301c;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --brand:var(--brand-light);
+  --bg:#ffffff; --panel:#f6f8fa; --panel2:#ffffff; --line:#d8dee4;
+  --fg:#1f2328; --dim:#656d76; --red:#cf222e; --green:#1a7f37; --cyan:#0550ae; --violet:#8250df;
+  --hover:#eef1f4; --missionbg:#f2f7ff; --missionbd:#b6d4fe; --flash:#dafbe1;
+  --glow:transparent; --scan:transparent;
+}
+:root[data-theme="monokai"]{
+  color-scheme:dark;
+  --bg:#272822; --panel:#2f302a; --panel2:#34352e; --line:#49483e;
+  --fg:#f8f8f2; --dim:#9a957f; --red:#fa508d; --green:#a6e22e; --cyan:#66d9ef; --violet:#ae81ff;
+  --hover:#3e3d32; --missionbg:#26312f; --missionbd:#41615f; --flash:#33421f;
+}
+:root[data-theme="dracula"]{
+  color-scheme:dark;
+  --bg:#282a36; --panel:#21222c; --panel2:#2b2d3a; --line:#44475a;
+  --fg:#f8f8f2; --dim:#8b92bd; --red:#ff5b5b; --green:#50fa7b; --cyan:#8be9fd; --violet:#bd93f9;
+  --hover:#343746; --missionbg:#22303a; --missionbd:#3b5a68; --flash:#2b3f2f;
+}
+:root[data-theme="nord"]{
+  color-scheme:dark;
+  --bg:#2e3440; --panel:#292e39; --panel2:#333a47; --line:#434c5e;
+  --fg:#d8dee9; --dim:#929eb2; --red:#e57f89; --green:#a3be8c; --cyan:#88c0d0; --violet:#b995b2;
+  --hover:#3b4252; --missionbg:#2b3945; --missionbd:#4c6272; --flash:#333f33;
+}
+.right{display:flex;gap:8px;align-items:center;margin-left:auto}
+#theme{font:inherit;font-size:11px;background:var(--panel2);color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:3px 6px;cursor:pointer}
+#theme:hover{color:var(--fg)}
+#home{font:inherit;font-size:11px;text-decoration:none;white-space:nowrap;background:var(--panel2);color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:3px 9px}
+#home:hover{color:var(--brand);border-color:var(--brand)}
+@media (max-width:640px){ .right{margin-left:0} }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:14px}
+#app{display:grid;grid-template-rows:auto 1fr;height:100vh;height:100dvh}
+header{display:flex;gap:16px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header .title{color:var(--brand);font-weight:700;letter-spacing:.5px;text-shadow:0 0 12px var(--glow)}
+header .meta{color:var(--dim);font-size:12px}
+header .meta b{color:var(--cyan);font-weight:400}
+header .meta b.warn{color:var(--red)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
+#term{display:flex;flex-direction:column;min-height:0;padding:12px 16px 10px;cursor:text;position:relative}
+/* A Termlink is a CRT. Faint scanlines on the dark themes only; never on text contrast that matters. */
+#term::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,var(--scan) 2px,var(--scan) 3px)}
+#out{flex:1;overflow:auto;line-height:1.45;padding-bottom:6px}
+#out > div{margin:0 0 2px}
+.raw{white-space:pre}
+.echo{white-space:pre-wrap;word-break:break-all;margin-top:8px!important}
+.ps{color:var(--green);text-shadow:0 0 10px var(--glow)}
+.err{white-space:pre-wrap;color:var(--red)}
+.ok{white-space:pre-wrap;color:var(--green)}
+.dim{white-space:pre-wrap;color:var(--dim)}
+.narr{white-space:pre-wrap;color:var(--amber);border-left:2px solid var(--amber);padding:2px 0 2px 10px;margin:8px 0!important}
+.tip{white-space:pre-wrap;color:var(--violet);border-left:2px solid var(--violet);padding:2px 0 2px 10px;margin:6px 0!important}
+.mission{white-space:pre-wrap;color:var(--cyan);border:1px solid var(--missionbd);background:var(--missionbg);padding:8px 12px;margin:10px 0!important;border-radius:4px}
+.banner{white-space:pre;color:var(--brand);text-shadow:0 0 14px var(--glow)}
+.watch{border-left:2px solid var(--green);padding-left:10px}
+#inrow.watching{border-top-color:var(--green)}
+#inrow.watching .ps{color:var(--dim);text-shadow:none}
+.story{white-space:pre-wrap}
+#inrow{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:8px}
+#inrow .ps{white-space:nowrap}
+#cmd{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--fg);font:inherit;caret-color:var(--green);padding:4px 0}
+aside{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:12px}
+.card h3{margin:0 0 8px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);font-weight:600}
+#mTitle{color:var(--cyan);font-weight:700;margin-bottom:6px}
+#mGoal{line-height:1.45}
+.bar{height:4px;background:var(--line);border-radius:2px;margin:10px 0 10px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);width:0;transition:width .4s;box-shadow:0 0 8px var(--glow)}
+button{font:inherit;font-size:12px;background:transparent;color:var(--amber);border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer}
+button:hover{background:var(--hover)}
+ul{list-style:none;margin:0;padding:0}
+#clues li{padding:5px 0;border-bottom:1px dashed var(--line);font-size:12.5px;line-height:1.4}
+#clues li:last-child{border-bottom:0}
+#clues li::before{content:"\25C6 ";color:var(--amber)}
+#clues .empty{color:var(--dim)}
+#clues .empty::before{content:""}
+#manual li{padding:6px 4px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1.35}
+#manual li:hover{background:var(--hover)}
+#manual code{color:var(--dim);font-family:inherit}
+#manual .n{color:var(--dim);font-size:11px;display:block;margin-top:2px;padding-left:16px}
+#manual li .ck{display:inline-block;width:16px;color:var(--line)}
+#manual li.got code{color:var(--green)}
+#manual li.got .ck{color:var(--green)}
+#manual li.flash{background:var(--flash)}
+#codes div{padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px;line-height:1.4}
+#codes div:last-child{border-bottom:0}
+#codes b{display:block;font-weight:600;color:var(--green)}
+#codes b.r{color:var(--red)} #codes b.a{color:var(--amber)}
+#codes span{color:var(--dim)}
+.small{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.4}
+#keys{display:none;gap:8px;padding-top:8px}
+#keys button{flex:1;padding:10px 0;font-size:12px}
+/* On-screen keyboards have no Tab and no arrows, so put the three the game needs on screen. */
+@media (hover:none) and (pointer:coarse){ #keys{display:flex} }
+/* ---------- report card (end of shift) ---------- */
+#out > .rc{margin:16px 0 8px}
+.rc{position:relative;z-index:1;max-width:780px;white-space:normal;font-size:13px;line-height:1.4;background:var(--panel2);border:1px solid var(--line);border-top:3px solid var(--brand);border-radius:6px;padding:14px 16px;cursor:default}
+.rc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.rc-kick{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim)}
+.rc-case{font-size:17px;font-weight:700;color:var(--brand);margin-top:3px;text-shadow:0 0 12px var(--glow)}
+.rc-case span{font-size:12px;font-weight:400;color:var(--dim);text-shadow:none}
+.rc-stamp{border:2px solid var(--brand);color:var(--brand);border-radius:4px;padding:5px 10px;font-weight:700;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;transform:rotate(-2.5deg);white-space:nowrap;margin:4px 4px 0 0}
+.rc-stamp.wip{border-style:dashed;color:var(--dim);border-color:var(--dim);transform:none}
+.rc-who{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;margin:12px 0 2px;color:var(--dim);font-size:12px}
+.rc-who label{display:flex;align-items:center;gap:8px}
+.rc-who input{font:inherit;font-size:14px;color:var(--fg);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px;width:230px;max-width:60vw}
+.rc-who input:focus{outline:0;border-bottom-color:var(--brand)}
+.rc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;margin:12px 0}
+.rc-stats div{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.rc-stats b{display:block;font-size:22px;color:var(--fg);font-weight:700;line-height:1.15}
+.rc-stats b small{font-size:13px;color:var(--dim);font-weight:400}
+.rc-stats span{font-size:11px;color:var(--dim)}
+.rc-sub{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:2px 0 6px}
+.rc-strip{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 7px}
+.rc-strip i,.rc-legend i{display:inline-block;width:18px;height:18px;border-radius:3px;border:1.5px solid var(--brand);position:relative}
+.rc-strip i.c0,.rc-legend i.c0{background:var(--brand)}
+.rc-strip i.c1,.rc-legend i.c1{background:linear-gradient(135deg,var(--brand) 50%,transparent 50%)}
+.rc-strip i.c2,.rc-legend i.c2{border-color:var(--dim)}
+.rc-strip i.c3{border-style:dashed;border-color:var(--line)}
+.rc-strip i.miss::after,.rc-legend i.miss::after{content:"";position:absolute;right:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.rc-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:11px;color:var(--dim)}
+.rc-legend span{display:inline-flex;align-items:center;gap:6px}
+.rc-legend i{width:11px;height:11px}
+.rc-foot{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--dim)}
+.rc-foot .new{color:var(--green)}
+@media (max-width:900px){
+  main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  aside{border-left:0;border-top:1px solid var(--line);max-height:34vh}
+  #term{padding:10px 12px}
+  html,body{font-size:13px}
+  /* iOS zooms the whole page when you focus an input under 16px. */
+  #cmd,.rc-who input{font-size:16px}
+}
+@media (max-width:640px){
+  header{gap:10px 12px;padding:8px 12px}
+  header .meta.opt{display:none}
+}
+</style>
+<script>
+/* Applies the saved theme before first paint, so nobody sees a flash of the wrong one. */
+(()=>{ try{ var t=localStorage.getItem('ktg-theme');
+  if (['dark','light','monokai','dracula','nord'].indexOf(t)>=0) document.documentElement.setAttribute('data-theme',t);
+}catch(e){} })();
+</script>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="title">ROBCO: PERSONALITY CRISIS</span>
+    <span class="meta opt">context: <b>robco-boston</b></span>
+    <span class="meta">namespace: <b id="hNs">default</b></span>
+    <span class="meta">task: <b id="hM">1/17</b></span>
+    <span class="meta">units in service: <b id="hU">--</b></span>
+    <span class="meta opt">calls waiting: <b id="hQ">--</b></span>
+    <span class="meta">local time: <b id="hT">--:--</b></span>
+    <span class="right">
+      <a id="home" href="index.html" title="Back to the case list">&#8962; Home</a>
+      <select id="theme" aria-label="Colour theme" title="Colour theme">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="monokai">Monokai</option>
+        <option value="dracula">Dracula</option>
+        <option value="nord">Nord</option>
+      </select>
+    </span>
+  </header>
+  <main>
+    <section id="term">
+      <div id="out" aria-live="polite"></div>
+      <div id="inrow"><span class="ps">fleetops@termlink:~$</span><input id="cmd" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="command"></div>
+      <div id="keys">
+        <button type="button" data-k="tab" title="Autocomplete">Tab &#8677;</button>
+        <button type="button" data-k="up" title="Previous command">&#8593;</button>
+        <button type="button" data-k="down" title="Next command">&#8595;</button>
+      </div>
+    </section>
+    <aside>
+      <div class="card">
+        <h3>Current task</h3>
+        <div id="mTitle"></div>
+        <div id="mGoal"></div>
+        <div class="bar"><i id="mBar"></i></div>
+        <button id="hintBtn">Get a hint</button>
+      </div>
+      <div class="card">
+        <h3>Incident notes</h3>
+        <ul id="clues"></ul>
+      </div>
+      <div class="card">
+        <h3>Reading pod status</h3>
+        <div id="codes">
+          <div><b>Running &#183; 1/1</b><span>The process is up and passing its readiness check. It says nothing about whether it is doing the right thing.</span></div>
+          <div><b class="r">ImagePullBackOff &#183; ErrImagePull</b><span>The image can't be pulled. The container has never started, so it has never done anything.</span></div>
+          <div><b class="r">CrashLoopBackOff</b><span>Starts, exits, waits longer each retry. Read logs --previous.</span></div>
+          <div><b>Completed &#183; exit 0</b><span>A job that finished normally. Nothing to fix.</span></div>
+          <div><b class="a">OOMKilled &#183; exit 137</b><span>Went over its memory limit and was killed.</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Field manual</h3>
+        <ul id="manual"></ul>
+        <div class="small">Click a command to put it on the prompt (the &#8230; | ones add to what you've typed). Tab autocompletes names. &#8593;/&#8595; recall history.</div>
+      </div>
+    </aside>
+  </main>
+</div>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const out = $('#out'), inp = $('#cmd');
+const SEC = 1e3, MIN = 60e3, HOUR = 3600e3, DAY = 86400e3;
+/* The game uses the player's real computer clock. Every time in the game
+   (ages, describe, events, logs, answers) is worked out from this one clock. */
+const now = () => Date.now();
+const CTX = 'robco-boston';
+const PS = 'fleetops@termlink:~$';
+const NODES = [['rc-bos-01','10.77.1.21'],['rc-bos-02','10.77.1.22'],['rc-bos-03','10.77.1.23']];
+const CH_ALPHA = 'bcdfghjklmnpqrstvwxz2456789';
+const rnd = n => { let s=''; for (let i=0;i<n;i++) s += CH_ALPHA[Math.floor(Math.random()*CH_ALPHA.length)]; return s; };
+const hash = str => { let h=2166136261; for (const c of str){ h^=c.charCodeAt(0); h=Math.imul(h,16777619);} return h>>>0; };
+const prng = seed => { let a=seed>>>0; return () => { a=(a+0x6D2B79F5)>>>0; let t=a; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; };
+const hex = (seed,n) => { const r=prng(hash(seed)); let s=''; for(let i=0;i<n;i++) s+='0123456789abcdef'[Math.floor(r()*16)]; return s; };
+
+/* ---------- the calendar ---------- */
+/* Times are the player's own clock, but the calendar is Boston, October 2077:
+   the day the game loads is always Friday 22 October. Hours and minutes are untouched,
+   so "that was 40 minutes ago" is still exactly true. */
+const GY = 2077, GM = 9, GD = 22;
+const DAY0 = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+function G(ms){
+  const d = new Date(ms), off = Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime()-DAY0)/DAY);
+  return new Date(GY, GM, GD+off, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+}
+/* A 2077 wall-clock time back to the real instant it stands for. */
+function unG(y,mo,da,h,mi,s){
+  const off = Math.round((new Date(y,mo-1,da).getTime()-new Date(GY,GM,GD).getTime())/DAY);
+  const b = new Date(DAY0); b.setDate(b.getDate()+off); b.setHours(h,mi,s||0,0);
+  return b.getTime();
+}
+
+/* ---------- formatting ---------- */
+function fmtAge(ms){
+  const s = Math.max(0, Math.floor(ms/1000));
+  if (s < 120) return s+'s';
+  const m = Math.floor(s/60);
+  if (m < 10) return m+'m'+(s%60 ? (s%60)+'s' : '');
+  if (m < 180) return m+'m';
+  const h = Math.floor(m/60);
+  if (h < 8) return h+'h'+(m%60 ? (m%60)+'m' : '');
+  if (h < 48) return h+'h';
+  const d = Math.floor(h/24);
+  if (d < 8) return d+'d'+(h%24 ? (h%24)+'h' : '');
+  return d+'d';
+}
+const p2 = n => String(n).padStart(2,'0');
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(ms){
+  const d = G(ms), off = -new Date(ms).getTimezoneOffset();
+  return `${DAYS[d.getDay()]}, ${p2(d.getDate())} ${MONS[d.getMonth()]} ${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())} ${off>=0?'+':'-'}${p2(Math.floor(Math.abs(off)/60))}${p2(Math.abs(off)%60)}`;
+}
+const tzOff = ms => { const o=-new Date(ms).getTimezoneOffset(); return o===0 ? 'Z' : `${o>0?'+':'-'}${p2(Math.floor(Math.abs(o)/60))}:${p2(Math.abs(o)%60)}`; };
+const ts = ms => { const d=G(ms); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}${tzOff(ms)}`; };
+const tsUTC = ms => { const d=G(ms + new Date(ms).getTimezoneOffset()*MIN); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}Z`; };
+const TSRE = /(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(\.\d+)?(Z|[+-]\d\d:\d\d)/;
+const tsMs = m => unG(+m[1],+m[2],+m[3],+m[4],+m[5],+m[6]);
+const clock = ms => { const d=new Date(ms); return `${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+function fmtShort(ms){ const d=G(ms); return `${DAYS[d.getDay()]} ${p2(d.getDate())} ${MONS[d.getMonth()]} ${clock(ms)}`; }
+function parseDur(str){
+  let n = String(str).toLowerCase().replace(/\band\b/g,'').replace(/hours?|hrs?/g,'h').replace(/minutes?|mins?/g,'m').replace(/seconds?|secs?/g,'s').replace(/days?/g,'d').replace(/[\s,]+/g,'');
+  if (!/^(\d+(\.\d+)?[dhms])+$/.test(n)) return null;
+  let ms=0; for (const m of n.matchAll(/(\d+(?:\.\d+)?)([dhms])/g)) ms += +m[1]*{d:DAY,h:HOUR,m:MIN,s:SEC}[m[2]];
+  return ms;
+}
+function table(rows, indent=''){
+  const w=[]; rows.forEach(r=>r.forEach((c,i)=>{ w[i]=Math.max(w[i]||0,String(c).length); }));
+  return rows.map(r=>indent + r.map((c,i)=> i===r.length-1 ? String(c) : String(c).padEnd(w[i]+3)).join('')).join('\n');
+}
+
+/* ---------- apps ---------- */
+const APPS = {
+  'matrix-server':{c:'matrix',img:'registry.robco.internal/personality/matrix-server:4.7.2',port:'7077/TCP',sa:'matrix-server',env:{MATRIX_DIR:'/etc/matrix',ROLE_INDEX:'/etc/matrix/roles.idx',BROADCAST_TO:'unit-gateway.dispatch:7077'},cmvol:true,res:['100m','128Mi','500m','256Mi'],log:'matrix'},
+  'voice-synth':{c:'voice',img:'registry.robco.internal/personality/voice-synth:2.3.0',port:'7090/TCP',sa:'voice-synth',env:{VOICE_PACKS:'protectron-m2,protectron-promo'},res:['250m','256Mi','1','512Mi'],log:'voice'},
+  'dispatch-router':{c:'router',img:'registry.robco.internal/dispatch/dispatch-router:6.1.4',port:'8080/TCP',sa:'dispatch-router',env:{CONTRACT:'boston-metro',ROUTING_RULES:'/etc/dispatch/routing.yaml',QUARANTINE_AFTER_DECLINES:'3'},routing:true,res:['250m','256Mi','1','512Mi'],log:'dispatch'},
+  'unit-gateway':{c:'gateway',img:'registry.robco.internal/dispatch/unit-gateway:3.9.0',port:'7077/TCP',sa:'unit-gateway',env:{CHECKIN_INTERVAL:'15m',UNIT_SHARDS:'3'},res:['250m','256Mi','1','512Mi'],log:'gateway'},
+  'geo-lookup':{c:'geo',img:'registry.robco.internal/dispatch/geo-lookup:2.2.1',port:'8081/TCP',sa:'geo-lookup',env:{GRID:'boston-metro-v9'},res:['100m','128Mi','250m','256Mi'],log:'geo'},
+  'telemetry-ingest':{c:'ingest',img:'registry.robco.internal/fleet/telemetry-ingest:1.12.0',port:'9000/TCP',sa:'telemetry',env:{DB:'fleet-db.fleet-telemetry:5432'},res:['250m','256Mi','500m','512Mi'],log:'ingest'},
+  'fleet-db':{c:'postgres',img:'registry.robco.internal/fleet/fleet-db:15.4',port:'5432/TCP',sa:'fleet-db',env:{PGDATA:'/var/lib/postgresql/data'},res:['500m','1Gi','2','4Gi'],log:'pg'},
+  'telemetry-rollup':{c:'rollup',img:'registry.robco.internal/fleet/telemetry-rollup:1.12.0',sa:'batch',env:{WINDOW:'24h'},res:['100m','128Mi','500m','512Mi'],log:'generic'},
+  'nuka-promo':{c:'promo',img:'registry.robco.internal/marketing/nuka-promo:2.0-quantum',port:'8080/TCP',sa:'nuka-promo',env:{CAMPAIGN:'nuka-cola-quantum-launch',PROMO_ROLE:'nuka',TARGET:'unit-gateway.dispatch:7077'},res:['100m','128Mi','250m','256Mi'],log:'generic'},
+  'coredns':{c:'coredns',img:'registry.k8s.io/coredns/coredns:v1.11.3',port:'53/UDP',sa:'coredns',env:{},res:['100m','70Mi','','170Mi'],log:'dns'},
+  'metrics-server':{c:'metrics-server',img:'registry.k8s.io/metrics-server/metrics-server:v0.7.2',port:'10250/TCP',sa:'metrics-server',env:{},res:['100m','200Mi','',''],log:'generic'},
+  'prometheus-server':{c:'prometheus',img:'quay.io/prometheus/prometheus:v3.5.0',port:'9090/TCP',sa:'prometheus',env:{},res:['500m','2Gi','',''],log:'prom'},
+  'grafana':{c:'grafana',img:'docker.io/grafana/grafana:12.1.0',port:'3000/TCP',sa:'grafana',env:{},res:['100m','256Mi','',''],log:'generic'},
+  'alertmanager':{c:'alertmanager',img:'quay.io/prometheus/alertmanager:v0.28.1',port:'9093/TCP',sa:'alertmanager',env:{},res:['50m','64Mi','',''],log:'prom'},
+};
+const SVCS = {
+  'default':[['kubernetes','ClusterIP','10.96.0.1','<none>','443/TCP',412*DAY]],
+  'kube-system':[['kube-dns','ClusterIP','10.96.0.10','<none>','53/UDP,53/TCP',412*DAY],['metrics-server','ClusterIP','10.96.118.4','<none>','443/TCP',412*DAY]],
+  'monitoring':[['prometheus-server','ClusterIP','10.96.61.200','<none>','9090/TCP',300*DAY],['grafana','ClusterIP','10.96.61.201','<none>','80/TCP',300*DAY],['alertmanager','ClusterIP','10.96.61.202','<none>','9093/TCP',300*DAY]],
+  'personality':[['matrix-server','ClusterIP','10.96.20.7','<none>','7077/TCP',412*DAY],['voice-synth','ClusterIP','10.96.20.9','<none>','7090/TCP',412*DAY]],
+  'dispatch':[['dispatch-router','ClusterIP','10.96.30.4','<none>','8080/TCP',412*DAY],['unit-gateway','ClusterIP','10.96.30.7','<none>','7077/TCP',412*DAY],['geo-lookup','ClusterIP','10.96.30.9','<none>','8081/TCP',412*DAY]],
+  'fleet-telemetry':[['telemetry-ingest','ClusterIP','10.96.40.3','<none>','9000/TCP',412*DAY],['fleet-db','ClusterIP','None','<none>','5432/TCP',412*DAY]],
+  'marketing':[['nuka-promo','ClusterIP','10.96.90.12','<none>','8080/TCP',9*DAY]],
+};
+
+/* ---------- the fleet ---------- */
+/* Units look their personality up by position: role_id N loads line N of roles.idx.
+   Revision 7 inserted nuka.pmx at line 1 instead of appending it. */
+const ROLES = ['police','fire','medic','construction'];
+const IDX6 = ['police.pmx','fire.pmx','medic.pmx','construction.pmx'];
+const IDX7 = ['police.pmx','nuka.pmx','fire.pmx','medic.pmx','construction.pmx'];
+const SCOPE = {'police.pmx':'patrol-check, traffic-stop, noise-complaint, shoplifting','fire.pmx':'structure-fire, car-fire, alarm-check','medic.pmx':'medical-assist, fall-injury, welfare-check','construction.pmx':'road-repair, debris-clearing, streetlight-out','nuka.pmx':'promo-event'};
+const TYPES = [['noise-complaint','traffic-stop','patrol-check','shoplifting'],['structure-fire','car-fire','alarm-check'],['medical-assist','fall-injury','welfare-check'],['road-repair','debris-clearing','streetlight-out']];
+const DISTRICTS = ['back-bay','beacon-hill','north-end','charlestown','cambridge','fens','south-boston','quincy'];
+const SAYS = {
+  'nuka.pmx':['Nuka-Cola! Zap that thirst!','Have you tried Nuka-Cola Quantum? Twice the calories, twice the carbohydrates!','Please enjoy a refreshing Nuka-Cola, citizen.'],
+  'fire.pmx':['Stand clear. Commencing fire suppression.','Fire detected. Please exit the building calmly.'],
+  'medic.pmx':['Please describe the location of your pain.','Remain still. Medical assistance has arrived.'],
+};
+const kz = () => { let s=''; for (let i=0;i<10;i++) s+='bcdfghkmt2456789'[Math.floor(Math.random()*16)]; return s; };
+function unitPmx(u,t){
+  if (t < u.reload) return {cm:S.CM6, pmx:IDX6[u.role]};
+  if (S.fixReady==null || t < S.fixReady+u.backOff) return {cm:S.CM7, pmx:IDX7[u.role]};
+  return {cm:S.CM6, pmx:IDX6[u.role]};
+}
+function inService(u,t){ if (u.q==null || t<u.q) return true; return S.fixReady!=null && t>=S.fixReady+u.backOff; }
+const unitsUp = t => S.units.filter(u=>inService(u,t)).length;
+function roleBack(role){ if (S.fixReady==null) return Infinity; return S.fixReady + Math.min(...S.units.filter(u=>u.role===role).map(u=>u.backOff)); }
+/* One city call every ~40 seconds. Whether it got a unit depends on the fleet at that moment. */
+const SLOT = 40*SEC;
+function slotCall(k){
+  const r = prng(hash('call'+k+':'+S.seed)), t = S.W0 + k*SLOT + Math.floor(r()*SLOT*0.8), x = r();
+  const role = x<0.5 ? 0 : x<0.7 ? 1 : x<0.9 ? 2 : 3;
+  return {k, t, role, type:TYPES[role][Math.floor(r()*TYPES[role].length)], district:DISTRICTS[Math.floor(r()*DISTRICTS.length)], num:10000+((k*7919+S.seed)%89999), r};
+}
+function callFate(c){
+  if (c.role===0 || c.t < S.rollAt) return 'assigned';
+  if (c.t < S.lost[c.role]) return 'skip';          /* these calls are the declines, logged per unit */
+  if (c.t < roleBack(c.role)) return 'unassigned';
+  return 'assigned';
+}
+function callsWaiting(){
+  const t=now(); let n=0;
+  for (let k=0; ; k++){ const c=slotCall(k); if (c.t>t) break; if (callFate(c)==='unassigned' && t<roleBack(c.role)) n++; }
+  return n;
+}
+
+/* ---------- state ---------- */
+let S, T0;
+function newState(){
+  T0 = now();
+  const st = {
+    ns:'default', chapter:0, hintIdx:0, hints:0, hintMax:{}, miss:{}, cmds:0, kube:0, piped:0, watches:0, startAt:T0, wrong:0,
+    flags:{}, clues:[], learned:new Set(), events:[], history:[], hpos:0, done:false,
+    namespaces:[['default',412*DAY],['kube-system',412*DAY],['monitoring',300*DAY],['personality',412*DAY],['dispatch',412*DAY],['fleet-telemetry',412*DAY],['marketing',9*DAY]].map(([name,a])=>({name,created:now()-a})),
+    deps:[], pods:[], units:[], cms:[], seed:T0%100000,
+  };
+  st.W0      = T0 - 150*MIN;    /* where the pods' logs begin */
+  st.promoAt = T0 - 119*MIN;    /* marketing deploys nuka-promo */
+  st.rollAt  = T0 - 112*MIN;    /* matrix-server revision 7 rolls out */
+  st.fixAt = null; st.fixReady = null;
+  st.CM5 = 'personality-matrix-'+kz(); st.CM6 = 'personality-matrix-'+kz(); st.CM7 = 'personality-matrix-'+kz();
+  S = st;
+  const D = (ns,name,replicas,age,extra={}) => st.deps.push(Object.assign({ns,name,replicas,created:now()-age,hash:hex(ns+name+T0,9).replace(/[aeiou01]/g,'7').slice(0,9),old:[],ann:{}},extra));
+  D('kube-system','coredns',2,412*DAY); D('kube-system','metrics-server',1,412*DAY);
+  D('monitoring','prometheus-server',1,300*DAY); D('monitoring','grafana',1,300*DAY); D('monitoring','alertmanager',1,300*DAY);
+  const rh = s => hex('rs'+s+T0,10).replace(/[aeiou01]/g,'7').slice(0,10);
+  const revs = [
+    {rev:5, hash:rh(5), cm:st.CM5, cause:'RCO-4398 voice pack refresh (protectron-m2)', created:T0-38*DAY-5*HOUR},
+    {rev:6, hash:rh(6), cm:st.CM6, cause:'RCO-4420 medic triage phrases v2', created:T0-23*DAY-2*HOUR},
+    {rev:7, hash:rh(7), cm:st.CM7, cause:'RCO-4471 add nuka.pmx promotional role for marketing launch', created:st.rollAt}];
+  D('personality','matrix-server',3,412*DAY,{revs, hash:revs[2].hash, cm:st.CM7});
+  D('personality','voice-synth',3,412*DAY);
+  D('dispatch','dispatch-router',1,412*DAY,{ann:{'robco.com/leader-election':'single-writer'}});
+  D('dispatch','unit-gateway',3,412*DAY);
+  D('dispatch','geo-lookup',2,412*DAY);
+  D('fleet-telemetry','telemetry-ingest',3,412*DAY);
+  D('fleet-telemetry','fleet-db',1,412*DAY,{sts:true,hash:'fleet-db-'+hex('fleet-db',10)});
+  D('marketing','nuka-promo',1,T0-st.promoAt,{ann:{'marketing.robco.com/campaign':'nuka-cola-quantum-launch','marketing.robco.com/requested-role':'nuka'}});
+  for (const d of st.deps){
+    for (let i=0;i<d.replicas;i++){
+      let created;
+      if (d.name==='matrix-server') created = st.rollAt + i*6*SEC;
+      else if (d.name==='nuka-promo') created = st.promoAt;
+      else created = now() - Math.min(now()-d.created, (3+Math.floor(Math.random()*6))*DAY + Math.floor(Math.random()*20)*HOUR);
+      mkPod(d, created, true);
+    }
+  }
+  /* Last night's telemetry rollup finished normally and exited 0. */
+  const jc = T0 - 3*HOUR - 20*MIN, job = 'telemetry-rollup-29311720';
+  st.pods.push({ns:'fleet-telemetry',dep:'telemetry-rollup',job,hash:'',name:`${job}-${rnd(5)}`,created:jc,node:NODES[2][0],nodeIp:NODES[2][1],ip:'10.244.3.77',term:null,restarts0:0,completed:{start:jc+2500,end:jc+2500+4*MIN+12*SEC}});
+  /* ConfigMaps. Kustomize gives every version of the matrix its own hashed name,
+     which is why all three are still here and why a rollback has something to go back to. */
+  const cm = (ns,name,created,data,labels={},ann={}) => st.cms.push({ns,name,created,data,labels,ann});
+  for (const n of st.namespaces) cm(n.name,'kube-root-ca.crt',n.created,{'ca.crt':'-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIIRk9CT1JPQkNPMA0GCSqGSIb3DQEBCwUAMBUxEzARBgNV\n...\n-----END CERTIFICATE-----'});
+  cm('personality',st.CM5,revs[0].created,matrixData(IDX6,1),{app:'matrix-server'});
+  cm('personality',st.CM6,revs[1].created,matrixData(IDX6,2),{app:'matrix-server'});
+  cm('personality',st.CM7,revs[2].created,matrixData(IDX7,2),{app:'matrix-server'});
+  cm('dispatch','dispatch-routing',T0-61*DAY,{'routing.yaml':`# boston-metro contract: which call types go to which role
+police:        [noise-complaint, traffic-stop, patrol-check, shoplifting]
+fire:          [structure-fire, car-fire, alarm-check]
+medic:         [medical-assist, fall-injury, welfare-check]
+construction:  [road-repair, debris-clearing, streetlight-out]
+
+# a unit that declines this many calls in a row is taken out of service
+quarantine_after_declines: 3`},{app:'dispatch-router'});
+  cm('marketing','nuka-promo-config',st.promoAt,{'campaign.yaml':`campaign: nuka-cola-quantum-launch
+launch: 2077-10-23T08:00:00
+role: nuka              # personality requested from RobCo (ticket RCO-4471)
+units: 6                # borrowed from the police allocation during launch hours
+districts: [back-bay, fens]`,'jingle.txt':'Zap that thirst!'},{app:'nuka-promo'});
+  cm('kube-system','coredns',T0-412*DAY,{'Corefile':'.:53 {\n    errors\n    health\n    kubernetes cluster.local in-addr.arpa ip6.arpa\n    forward . /etc/resolv.conf\n    cache 30\n}'});
+  /* The fleet: 48 Protectrons on the Boston metro contract. */
+  const counts=[20,12,9,7], used=new Set();
+  for (let r=0;r<4;r++) for (let i=0;i<counts[r];i++){
+    let id; do { id='PT-'+(1000+Math.floor(Math.random()*9000)); } while (used.has(id)); used.add(id);
+    const R = prng(hash(id+':'+T0));
+    const u = {id, role:r, district:DISTRICTS[Math.floor(R()*DISTRICTS.length)], gw:Math.floor(R()*3), phase:Math.floor(R()*15*MIN),
+      reload:st.rollAt+30*SEC+Math.floor(R()*40*SEC), backOff:3*SEC+Math.floor(R()*30*SEC), battery:62+Math.floor(R()*36), q:null};
+    if (r>0){
+      let t = u.reload + (3+R()*20)*MIN; u.dec=[];
+      for (let k=0;k<3;k++){ const w=IDX7[r]; u.dec.push({t:Math.round(t), num:10000+Math.floor(R()*89999), type:TYPES[r][Math.floor(R()*TYPES[r].length)], said:SAYS[w][Math.floor(R()*SAYS[w].length)]}); t += (4+R()*12)*MIN; }
+      u.q = u.dec[2].t + 1500;
+    }
+    st.units.push(u);
+  }
+  st.lost = [0,1,2,3].map(r=> r===0 ? Infinity : Math.max(...st.units.filter(u=>u.role===r).map(u=>u.q)));
+  const qs = st.units.filter(u=>u.q).map(u=>u.q).sort((a,b)=>a-b);
+  st.firstQ = qs[0]; st.lastQ = qs[qs.length-1]; st.alertAt = qs[12];
+  /* The example unit in the mission text checks in on a gateway pod that
+     kubectl logs deploy/unit-gateway will NOT pick, so the -l lesson has teeth. */
+  const gws = gwPods(), pick = gws.slice().sort((a,b)=>b.created-a.created)[0];
+  const cand = st.units.filter(u=>u.role===1 && gws[u.gw]!==pick);
+  st.sample = (cand[0] || st.units.find(u=>u.role===1)).id;
+}
+function matrixData(idx, triage){
+  const d = {};
+  d['police.pmx'] = `voice: protectron-m2\ngreeting: "Halt. Please present identification."\nscope: [${SCOPE['police.pmx']}]`;
+  d['fire.pmx'] = `voice: protectron-m2\ngreeting: "Stand clear. Commencing fire suppression."\nscope: [${SCOPE['fire.pmx']}]`;
+  d['medic.pmx'] = `voice: protectron-m2\ngreeting: "Please describe the location of your pain."\ntriage: v${triage}\nscope: [${SCOPE['medic.pmx']}]`;
+  d['construction.pmx'] = `voice: protectron-m2\ngreeting: "Caution. Construction zone ahead."\nscope: [${SCOPE['construction.pmx']}]`;
+  if (idx.includes('nuka.pmx')) d['nuka.pmx'] = `voice: protectron-promo\ngreeting: "Nuka-Cola! Zap that thirst!"\ndispense: nuka-cola-quantum\nscope: [${SCOPE['nuka.pmx']}]`;
+  d['roles.idx'] = `# RobCo Protectron personality index\n# role_id = position in this list, counting from 0.\n# Units keep their role_id in firmware. APPEND new roles; never insert or reorder.\n${idx.join('\n')}`;
+  return d;
+}
+function mkPod(d, created, silent){
+  const node = NODES[Math.floor(Math.random()*NODES.length)];
+  let pname = `${d.name}-${d.hash}-${rnd(5)}`;
+  if (d.sts){ let i=0; while (S.pods.some(x=>x.ns===d.ns&&x.name===`${d.name}-${i}`)) i++; pname = `${d.name}-${i}`; }
+  const p = {ns:d.ns, dep:d.name, sts:!!d.sts, hash:d.hash, name:pname, created, node:node[0], nodeIp:node[1],
+    ip:`10.244.${1+Math.floor(Math.random()*3)}.${2+Math.floor(Math.random()*250)}`, term:null, restarts0:0};
+  if (d.cm) p.cm = d.cm;
+  if (d.name==='nuka-promo') p.pull = true;
+  S.pods.push(p);
+  if (!silent){
+    const c = APPS[d.name].c;
+    if (d.sts) ev(d.ns,'Normal','SuccessfulCreate',`statefulset/${d.name}`,`create Pod ${p.name} in StatefulSet ${d.name} successful`,'statefulset-controller');
+    else ev(d.ns,'Normal','SuccessfulCreate',`replicaset/${d.name}-${d.hash}`,`Created pod: ${p.name}`,'replicaset-controller');
+    ev(d.ns,'Normal','Scheduled',`pod/${p.name}`,`Successfully assigned ${d.ns}/${p.name} to ${p.node}`,'default-scheduler', 200);
+    ev(d.ns,'Normal','Pulled',`pod/${p.name}`,`Container image "${APPS[d.name].img}" already present on machine`,'kubelet', 1200);
+    ev(d.ns,'Normal','Created',`pod/${p.name}`,`Created container: ${c}`,'kubelet', 2000);
+    ev(d.ns,'Normal','Started',`pod/${p.name}`,`Started container ${c}`,'kubelet', 2500);
+  }
+  return p;
+}
+function ev(ns,type,reason,obj,msg,src,delay=0){ S.events.push({ns,type,reason,obj,msg,src,t:now()+delay}); }
+const dep = (ns,name) => S.deps.find(d=>d.ns===ns && d.name===name && !d.sts);
+const stsOf = (ns,name) => S.deps.find(d=>d.ns===ns && d.name===name && d.sts);
+const gwPods = () => S.pods.filter(p=>p.dep==='unit-gateway' && !p.term).sort((a,b)=>a.name.localeCompare(b.name));
+function podLabels(p){
+  if (p.job) return {'job-name':p.job, 'batch.kubernetes.io/job-name':p.job};
+  if (p.sts) return {app:p.dep, 'apps.kubernetes.io/pod-index':p.name.split('-').pop(), 'controller-revision-hash':p.hash, 'statefulset.kubernetes.io/pod-name':p.name};
+  return {app:p.dep, 'pod-template-hash':p.hash};
+}
+/* label selectors: app=x, app!=x, app in (a,b), app notin (a,b), key, !key — comma = AND */
+function parseSelector(sel){
+  const parts=[]; let depth=0, cur='';
+  for (const ch of sel){ if (ch==='(') depth++; if (ch===')') depth--; if (ch===',' && depth===0){ parts.push(cur); cur=''; } else cur+=ch; }
+  parts.push(cur);
+  const reqs=[];
+  for (const raw of parts){ const t=raw.trim(); let m;
+    if ((m=t.match(/^([\w./-]+)\s+(in|notin)\s*\(([^)]*)\)$/))) reqs.push({k:m[1],op:m[2],v:m[3].split(',').map(x=>x.trim()).filter(Boolean)});
+    else if ((m=t.match(/^([\w./-]+)\s*(==|=|!=)\s*([\w.-]*)$/))) reqs.push({k:m[1],op:m[2]==='!='?'!=':'=',v:[m[3]]});
+    else if ((m=t.match(/^!([\w./-]+)$/))) reqs.push({k:m[1],op:'!exists'});
+    else if ((m=t.match(/^([\w./-]+)$/))) reqs.push({k:m[1],op:'exists'});
+    else return {error:`error: unable to parse requirement: ${t||'<empty>'}`};
+  }
+  return {reqs};
+}
+function selMatch(p, reqs){
+  const L=podLabels(p);
+  return reqs.every(r=>{ const has=Object.prototype.hasOwnProperty.call(L,r.k), val=L[r.k];
+    if (r.op==='exists') return has; if (r.op==='!exists') return !has;
+    if (r.op==='='||r.op==='in') return has && r.v.includes(val);
+    return !has || !r.v.includes(val); });
+}
+function reconcile(){
+  const t = now();
+  S.pods = S.pods.filter(p => !(p.term && t > p.term + 3500));
+  for (const d of S.deps){
+    const live = S.pods.filter(p=>p.ns===d.ns && p.dep===d.name && !p.term);
+    for (let i=live.length;i<d.replicas;i++) mkPod(d, now(), false);
+    if (live.length > d.replicas){
+      live.sort((a,b)=> d.sts ? a.name.localeCompare(b.name,undefined,{numeric:true}) : a.created-b.created);
+      live.slice(d.replicas).forEach(terminate);
+    }
+  }
+}
+function terminate(p){
+  if (p.term) return; p.term = now();
+  ev(p.ns,'Normal','Killing',`pod/${p.name}`,`Stopping container ${APPS[p.dep].c}`,'kubelet');
+}
+function gauges(){
+  if (S){
+    const u=document.getElementById('hU'), q=document.getElementById('hQ');
+    if (u){ const n=unitsUp(now()); u.textContent = `${n}/${S.units.length}`; u.className = n < S.units.length*0.75 ? 'warn' : ''; }
+    if (q){ const n=callsWaiting(); q.textContent = String(n); q.className = n>10 ? 'warn' : ''; }
+  }
+  const t=document.getElementById('hT'); if (t) t.textContent=clock(now());
+}
+setInterval(()=>{ if (S) reconcile(); gauges(); }, 500);
+
+/* ---------- pod status ---------- */
+function pv(p){
+  const t = now(), age = t - p.created;
+  let v = {kind:'running', status:'Running', ready:'1/1', restarts:p.restarts0||0, startedAt:p.created+2500, lastRestart:null};
+  if (p.completed){
+    v = {kind:'completed', status:'Completed', ready:'0/1', restarts:0, startedAt:p.completed.start, prevEnd:p.completed.end};
+  } else if (p.pull){
+    /* Every ~5 minutes the kubelet tries again, fails, and briefly shows ErrImagePull. */
+    const inCycle = (t - p.created) % (5*MIN);
+    v = {kind:'imagepull', status: inCycle < 4*SEC ? 'ErrImagePull' : 'ImagePullBackOff', ready:'0/1', restarts:0};
+  } else if (age < 2500){
+    v = {kind:'creating', status:'ContainerCreating', ready:'0/1', restarts:0};
+  }
+  if (p.term){ v.status='Terminating'; v.ready='0/1'; }
+  return v;
+}
+
+/* ---------- output ---------- */
+function blk(text, cls){ if (CAP){ CAP.push({text,cls}); return document.createElement('div'); } const d=document.createElement('div'); d.className=cls; d.textContent=text; out.appendChild(d); out.scrollTop = out.scrollHeight; return d; }
+const raw = t => blk(t,'raw');
+const err = t => blk(t,'err');
+const narr = t => blk(t,'narr');
+const tip = t => blk(t,'tip');
+const dim = t => blk(t,'dim');
+function echo(cmd){ const d=document.createElement('div'); d.className='echo'; const s=document.createElement('span'); s.className='ps'; s.textContent=PS+' '; d.appendChild(s); d.appendChild(document.createTextNode(cmd)); out.appendChild(d); }
+
+/* ---------- field manual ---------- */
+const MANUAL = [
+  ['getpodsA','kubectl get pods -A','Every pod in every namespace'],
+  ['grepv','kubectl get pods -A | grep -v Running','Hide the healthy ones (-v inverts the match)'],
+  ['describe','kubectl describe pod <pod> -n <ns>','State, reason, volumes, recent events'],
+  ['events','kubectl get events -n <ns> -o wide','FIRST SEEN, COUNT, SOURCE (they fade after ~1h)'],
+  ['logs','kubectl logs deploy/<name> -n <ns>','Logs from one pod of a Deployment'],
+  ['grep','… | grep -i <text>','Keep only the lines that match'],
+  ['grepc','… | grep -c <text>','Count matching lines (or end with | wc -l)'],
+  ['grepctx','… | grep -A5 <text>','Plus 5 lines After each match (-B before, -C both)'],
+  ['logsl','kubectl logs -l app=<name> -n <ns> --prefix --tail=-1','Every pod of an app, each line labelled'],
+  ['uniqc',"… | awk '{print $3}' | sort | uniq -c",'Tally a column: how many of each'],
+  ['getdeploy','kubectl get deploy -n <ns> -o wide','Deployments, their images and selectors'],
+  ['getrs','kubectl get rs -n <ns>','One ReplicaSet per revision; AGE = when it rolled out'],
+  ['history','kubectl rollout history deploy/<name> -n <ns>','Every revision, and why it happened'],
+  ['revision','kubectl rollout history deploy/<name> -n <ns> --revision=<n>','What one revision actually ran'],
+  ['getcm','kubectl get configmaps -n <ns>','Config files stored in the cluster (short: cm)'],
+  ['describecm','kubectl describe cm <name> -n <ns>','Read the files inside a ConfigMap'],
+  ['undo','kubectl rollout undo deploy/<name> -n <ns>','Back to the previous revision'],
+  ['status','kubectl rollout status deploy/<name> -n <ns>','Wait until a rollout has finished'],
+  ['watch','watch -n 1 kubectl get pods -n <ns>','Live view (Ctrl+C or Enter to stop)'],
+  ['wide','kubectl get pods -n <ns> -o wide','Which node each pod runs on, plus its IP'],
+  ['top','kubectl top pods -A','CPU / memory per pod'],
+  ['setns','kubectl config set-context --current --namespace=<ns>','Stop typing -n'],
+];
+function learn(k){
+  if (S.learned.has(k)) return;
+  S.learned.add(k);
+  renderManual();
+  const li = document.querySelector(`#manual li[data-k="${k}"]`);
+  if (li){ li.classList.add('flash'); setTimeout(()=>li.classList.remove('flash'), 1200); }
+}
+function renderManual(){
+  const ul = $('#manual'); ul.innerHTML='';
+  for (const [k,cmd,note] of MANUAL){
+    const li=document.createElement('li'); li.dataset.k=k; if (S.learned.has(k)) li.className='got';
+    const ck=document.createElement('span'); ck.className='ck'; ck.textContent = S.learned.has(k)?'✓':'○';
+    const c=document.createElement('code'); c.textContent=cmd;
+    const n=document.createElement('span'); n.className='n'; n.textContent=note;
+    li.append(ck,c,n);
+    li.onclick = () => {
+      stopWatch();
+      const i = cmd.indexOf('<'), frag = i>0 ? cmd.slice(0,i) : cmd+' ';
+      /* "… | grep" entries are pipe tails: add them to whatever is already typed. */
+      if (frag.startsWith('… ')) inp.value = inp.value.replace(/\s+$/,'') + ' ' + frag.slice(2);
+      else inp.value = frag;
+      inp.focus();
+    };
+    ul.appendChild(li);
+  }
+}
+
+/* ---------- chapters ---------- */
+const hasOut = (e, re) => (e.out||[]).some(l=>re.test(l));
+const CH = [
+ {id:'survey', t:'Clock In', g:'You have been paged about the Protectron fleet. Get the whole picture first: list the pods in every namespace at once.',
+  h:['One flag makes kubectl look across every namespace instead of just your current one.','-A (short for --all-namespaces) works with get.','kubectl get pods -A'],
+  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&e.all,
+  nudge:e=>(e.verb==='get'&&e.kind==='pods'&&!e.all)?'That is one namespace. You don\'t know where the problem is yet, so look everywhere: add -A.':null,
+  done:()=>{ narr(`${S.pods.length} pods across seven namespaces, and nearly every one says Running 1/1.
+
+That is what makes tonight different. 28 robots are misbehaving across the city, and the cluster looks healthy. Nothing is crash-looping. Running only means "the process is up and answering its health check". It says nothing about whether the process is doing the right thing.
+
+Reading ${S.pods.length} lines by eye is also how things get missed. Make the computer do it.`); clue(`Cluster looks healthy: nearly all ${S.pods.length} pods Running.`); }},
+ {id:'noise', t:'Signal from Noise', g:'Run the same list again, but pipe it through grep so only the pods that are NOT Running are left.',
+  h:['grep keeps the lines that match a pattern. grep -v does the opposite: it keeps the lines that DON\'T match.','Put a pipe | after the kubectl command, then grep -v Running.','kubectl get pods -A | grep -v Running'],
+  ok:e=>e.verb==='get'&&(e.kind==='pods'||e.kind==='all')&&e.all&&e.piped&&hasOut(e,/nuka-promo/)&&(e.out||[]).length<8,
+  nudge:e=>{ if (e.verb!=='get'||e.kind!=='pods'||!e.all) return null;
+    if (!e.piped) return 'Same list. Now filter it: add  | grep -v Running  to the end.';
+    if (!hasOut(e,/nuka-promo/)) return 'That filter hid the interesting line too. grep -v Running keeps everything that is NOT Running.';
+    return null; },
+  done:()=>{ narr(`Two pods, plus the header. (The header survives because "STATUS" doesn't contain "Running".)
+
+  • telemetry-rollup … Completed. Last night's scheduled job. It finished and exited 0. That is fine.
+  • marketing/nuka-promo … ${pv(S.pods.find(p=>p.dep==='nuka-promo')).status}, about ${fmtAge(now()-S.promoAt)} old.
+
+A Nuka-Cola promotion deployed two hours ago, in a namespace that is nine days old, and fire units are now offering people Nuka-Cola. That is a very good suspect.`); clue(`marketing/nuka-promo: ImagePullBackOff, deployed ${clock(S.promoAt)}. Suspicious timing.`); }},
+ {id:'promo', t:'Prime Suspect', g:'Describe the nuka-promo pod in the marketing namespace. What is it configured to do, and what state is it in?',
+  h:['describe pod shows the image, the container state, its environment and recent events.','Remember -n marketing, and Tab completes the random part of the pod name.','kubectl describe pod -n marketing nuka-promo-<Tab>'],
+  ok:e=>e.verb==='describe'&&e.kind==='pods'&&e.deploy==='nuka-promo',
+  done:()=>{ narr(`It looks guilty:
+  PROMO_ROLE: nuka
+  TARGET:     unit-gateway.dispatch:7077   (the service every Protectron connects to)
+
+Now read further down:
+  State:          Waiting
+    Reason:       ImagePullBackOff
+  Restart Count:  0
+  Events:  Failed to pull image "…/nuka-promo:2.0-quantum": … not found
+
+ImagePullBackOff means the kubelet can't download the image. Here that's because the tag 2.0-quantum doesn't exist in the registry. The kubelet keeps retrying, waiting longer between attempts, up to five minutes.`); clue('nuka-promo: TARGET=unit-gateway, PROMO_ROLE=nuka, but image tag 2.0-quantum not found.'); }},
+ {id:'alibi', q:true, t:'Alibi', g:'Could nuka-promo have pushed the Nuka personality to the fleet tonight?  answer yes  or  answer no',
+  h:['A container can only do something once it has started. What does State say? Is there a Started time anywhere?','State: Waiting, Reason: ImagePullBackOff, Restart Count 0, no Started time. It has never had an image to run.','Its environment describes what it WOULD do. It has never started a single process. Type: answer no'],
+  ok:e=>e.verb==='answer'&&S.flags.sawPull&&judgeYN(e.text)==='no',
+  nudge:e=>{ if (e.verb!=='answer') return null;
+    if (!S.flags.sawPull) return 'Check the evidence first: try kubectl describe pods -n marketing.';
+    if (judgeYN(e.text)==='yes') return 'Look at the container State and the Restart Count. Has this container ever actually started?';
+    return 'Answer with: answer yes  or  answer no'; },
+  done:()=>{ narr(`No. The timing and the config are suspicious, but it has never run. An environment variable like TARGET=unit-gateway describes what the app would do. It isn't evidence that it did anything.
+
+It still goes in the handover: marketing's launch is in the morning, and their image tag doesn't exist.
+
+Whatever changed the fleet was already running. The robots take their calls from dispatch, so read dispatch next.`); clue('nuka-promo has never run (ImagePullBackOff, 0 restarts). Not the cause.'); }},
+ {id:'dispatch', t:'Dispatch Log', g:'dispatch-router hands city calls to units. Its log is busy, so pull out just the warnings (namespace: dispatch).',
+  h:['kubectl logs works on a Deployment as well as a pod: logs deploy/dispatch-router. Expect hundreds of lines.','Pipe it: grep -i warn keeps only the warning lines. -i ignores upper/lower case.','kubectl logs deploy/dispatch-router -n dispatch | grep -i warn'],
+  ok:e=>e.verb==='logs'&&e.deploy==='dispatch-router'&&e.piped&&hasOut(e,/result=declined/),
+  nudge:e=>{ if (e.verb!=='logs'||e.deploy!=='dispatch-router') return null;
+    if (!e.piped) return `That was ${e.total} lines. Nobody reads that mid-incident. Pipe it: | grep -i warn`;
+    return 'Your grep didn\'t catch the declined calls. Try | grep -i warn'; },
+  done:()=>{ const u=S.units.find(x=>x.id===S.sample); narr(`Three kinds of warning:
+
+  result=declined     a unit refused a call: "task outside personality scope"
+  unit quarantined    after 3 declines in a row, dispatch takes the unit out of service
+  result=unassigned   calls with no unit left to send
+
+Read the pmx= and said= fields on the declines. A fire unit loaded nuka.pmx, got sent to ${/^[aeiou]/.test(u.dec[0].type)?'an':'a'} ${u.dec[0].type}, and said "${u.dec[0].said}". Medic units are carrying fire.pmx. Construction units are carrying medic.pmx.
+
+Every role except police is running the wrong personality file.`); clue('dispatch: fire units carry nuka.pmx, medic carry fire.pmx, construction carry medic.pmx.'); }},
+ {id:'count', q:true, t:'Damage Report', g:'The city contract desk wants one number: how many units has dispatch taken out of service? Count them, then  answer <number>',
+  h:['grep -c counts matching lines instead of printing them. (| wc -l at the end of a pipe does the same.)','Count the lines in the dispatch-router log that contain "quarantined". Each unit is quarantined exactly once.','kubectl logs deploy/dispatch-router -n dispatch | grep -c quarantined\n     It prints 28. Type: answer 28'],
+  ok:e=>e.verb==='answer'&&judgeNum(e.text)===28,
+  nudge:e=>{ if (e.verb!=='answer') return null; const n=judgeNum(e.text);
+    if (n==null) return 'Answer with a number, e.g. answer 12';
+    if (n===20) return 'That is how many are still IN service (see the header). The question is how many were taken out.';
+    if (n===48) return 'That is the whole fleet. Not all of it was quarantined: count the quarantine lines.';
+    if (n===84) return 'That counts every declined CALL. Each unit declines three before it is quarantined.';
+    if (n===112) return 'grep "declined" also matches the quarantine lines ("after 3 declined calls"). Count "quarantined" instead.';
+    if (n>112) return 'That is too many. Are you counting every warning? Count only lines containing "quarantined".';
+    return 'Not quite. Count the lines that contain "quarantined": | grep -c quarantined'; },
+  done:()=>{ narr(`28 of 48: every fire, medic and construction unit in the contract. Police is untouched, 20 of 20.
+
+That number also tells you something: if a random ${28} out of 48 had failed, you'd look at hardware, batteries or network. When every unit of three whole roles fails and every unit of the fourth is fine, the thing that broke knows about roles.`); clue('28/48 units quarantined: all fire, medic, construction. Police 20/20 fine.'); }},
+ {id:'trace', t:'Follow One Unit', g:()=>`Pick one quarantined unit from the dispatch log (for example ${S.sample}) and find its check-ins in the unit-gateway logs. Careful: unit-gateway runs 3 pods.`,
+  h:['Each unit always talks to the same gateway pod, and it may not be the one that kubectl logs deploy/unit-gateway picks for you.','-l app=unit-gateway reads every pod with that label. Add --prefix so each line says which pod it came from, and --tail=-1, because with -l kubectl only shows the last 10 lines of each pod by default.',()=>`kubectl logs -l app=unit-gateway -n dispatch --prefix --tail=-1 | grep ${S.sample}`],
+  ok:e=>{ const hit = e.verb==='logs'&&e.deploy==='unit-gateway'&&e.piped&&(e.greps||[]).some(g=>affected(g))&&hasOut(e,/msg="matrix reloaded".*pmx=(nuka|fire|medic)\.pmx previous=/);
+    if (hit) S.flags.tracePrefix = !!e.prefix; return hit; },
+  nudge:e=>{ if (e.verb!=='logs'||e.deploy!=='unit-gateway') return null;
+    const g=(e.greps||[]).find(x=>/PT-\d{4}/i.test(x));
+    if (!e.piped) return `That was ${e.total} lines of check-ins. Pipe it through grep and the unit's serial, e.g. | grep ${S.sample}`;
+    if (!g) return `Filter for one unit's serial, e.g. | grep ${S.sample}`;
+    let gre; try { gre=new RegExp(g,'i'); } catch(_){ gre=/(?!)/; }
+    const u = S.units.find(x=>gre.test(x.id));
+    if (u && u.role===0) return `${u.id} is a police unit and it is fine. Pick one that dispatch quarantined, e.g. ${S.sample}.`;
+    if (hasOut(e,/PT-\d{4}/) && !hasOut(e,/matrix reloaded/)) return e.tailDefault
+      ? 'You found some check-ins, but with -l kubectl only shows the last 10 lines of each pod. Add --tail=-1 to see its whole history, including the moment its personality changed.'
+      : 'You found its check-ins. Now find the moment its personality changed: look for a "matrix reloaded" line (you may need all of the log: --tail=-1).';
+    if (!hasOut(e,/PT-\d{4}/)){
+      if (e.sel && e.tailDefault) return 'With -l, kubectl only shows the last 10 lines of each pod unless you say otherwise. Add --tail=-1 to get all of them.';
+      if (!e.sel && u) return `Nothing. ${u.id} checks in on a different gateway pod from ${e.pod}. Search all three at once:\n  kubectl logs -l app=unit-gateway -n dispatch --prefix --tail=-1 | grep ${u.id}`;
+      return 'grep found nothing. Check the serial, and search every gateway pod with -l app=unit-gateway --tail=-1.';
+    }
+    return null; },
+  done:()=>{ const u=S.units.find(x=>x.id===S.sample); narr(`Look at the line that says msg="matrix reloaded":
+
+  role_id=${u.role} … pmx=${IDX7[u.role]} previous=${IDX6[u.role]}
+
+Before it, every check-in says matrix=${S.CM6} pmx=fire.pmx. After it: matrix=${S.CM7} pmx=nuka.pmx. The unit didn't malfunction. Nobody touched it. The matrix it was served changed, and it loaded the new one exactly as designed.
+
+${S.flags.tracePrefix ? "(Every line starts with [pod/unit-gateway-…]. That's --prefix: when you search several pods at once, it tells you which pod each line came from.)" : "(Tip: add --prefix and every line starts with the pod it came from. Handy when you search several pods at once.)"}`); clue(`Units reloaded to matrix ${S.CM7}. role_id unchanged; the file behind it changed.`); }},
+ {id:'when', q:true, t:'When Did It Change?', g:'When did the fleet start loading the new matrix?  answer 45m  (how long ago) or  answer 01:30  (clock time).',
+  h:['The "matrix reloaded" line has a timestamp, and all 48 units reloaded within about a minute of each other.','Another way: every Deployment revision gets its own ReplicaSet, and a ReplicaSet\'s AGE is when that revision rolled out. kubectl get rs -n personality',()=>`matrix-server's newest ReplicaSet is ${fmtAge(now()-S.rollAt)} old: it rolled out at ${clock(S.rollAt)}. Type: answer ${fmtAge(now()-S.rollAt)}`],
+  ok:e=>{ if (e.verb!=='answer') return false; const r=judgeTime(e.text,S.rollAt); return !!(r&&r.ok); },
+  nudge:e=>{ if (e.verb!=='answer') return null; const r=judgeTime(e.text,S.rollAt);
+    if (!r) return 'Answer with how long ago (e.g. answer 45m, answer 1h30m) or a clock time (e.g. answer 01:30). The header shows the current time.';
+    return `Not quite: that's about ${fmtAge(r.off*MIN)} away. Look for the first "matrix reloaded" line, or the AGE of the newest matrix-server ReplicaSet (kubectl get rs -n personality).`; },
+  done:()=>{ narr(`${clock(S.rollAt)}, about ${fmtAge(now()-S.rollAt)} ago. Seven minutes after nuka-promo was deployed, which is why that looked so convincing.
+
+Worth trying: kubectl get events -n personality. It is empty. Kubernetes deletes events after about an hour, so the rollout events that would have told you this have already gone. ReplicaSet ages and application logs last much longer. When events come up empty, check those next.`); clue(`Fleet switched matrix at ${clock(S.rollAt)} (matrix-server rollout).`); }},
+ {id:'history', t:'What Changed?', g:()=>`Something rolled out in personality at ${clock(S.rollAt)}. Ask the matrix-server Deployment for its revision history.`,
+  h:['Deployments keep a numbered history of revisions. kubectl rollout has a subcommand for it.','kubectl rollout history deployment/<name> -n <ns>','kubectl rollout history deployment/matrix-server -n personality'],
+  ok:e=>e.verb==='rollout'&&e.sub==='history'&&e.deploy==='matrix-server',
+  done:()=>{ narr(`Revision 7: RCO-4471 add nuka.pmx promotional role for marketing launch.
+
+So the Nuka personality came through the proper channel, the normal pipeline, with a ticket number on it. Marketing asked for a role and the Personality team added it.
+
+CHANGE-CAUSE comes from the kubernetes.io/change-cause annotation, which RobCo's CI fills in with the ticket number. When it says <none>, somebody changed the Deployment by hand or skipped the step. That's worth noticing on any cluster.`); clue('Revision 7 = RCO-4471: add nuka.pmx promotional role.'); }},
+ {id:'image', q:true, t:'Code or Config?', g:'The Personality team will ask first: did revision 7 ship new code? Compare the image in revisions 6 and 7, then  answer yes  (image changed) or  answer no',
+  h:['rollout history can print one revision in full with --revision=<n>.','Run it with --revision=7 and then --revision=6, and compare the Image lines. Then look at Volumes. (kubectl get rs -n personality -o wide shows every revision\'s image in one table.)','Both run matrix-server:4.7.2. Only the ConfigMap under Volumes is different. Type: answer no'],
+  ok:e=>e.verb==='answer'&&S.flags.sawRevDetail&&judgeYN(e.text)==='no',
+  nudge:e=>{ if (e.verb!=='answer') return null;
+    if (!S.flags.sawRevDetail) return 'Check the evidence first: try kubectl rollout history deployment/matrix-server -n personality --revision=7 and kubectl rollout history deployment/matrix-server -n personality --revision=6.';
+    if (judgeYN(e.text)==='yes') return 'Compare the Image: lines again. Same registry, same name, same tag?';
+    return 'Answer with: answer yes  or  answer no'; },
+  done:()=>{ narr(`No. Both revisions run matrix-server:4.7.2. The only difference is the ConfigMap mounted at /etc/matrix:
+
+  revision 6   ${S.CM6}
+  revision 7   ${S.CM7}
+
+This is why "what version is it running?" is the wrong first question tonight. The version didn't change. The configuration did. A config change still gets a new revision because the ConfigMap's name is part of the pod template.`); clue(`Same image (4.7.2) in rev 6 and 7. Only the ConfigMap changed: ${S.CM6} → ${S.CM7}.`); }},
+ {id:'cms', t:'The Matrix Files', g:'List the ConfigMaps in the personality namespace.',
+  h:['A ConfigMap is a resource like a pod, so get works on it. The short name is cm.','kubectl get configmaps -n personality','kubectl get cm -n personality'],
+  ok:e=>e.verb==='get'&&e.kind==='configmaps'&&(e.all||e.ns==='personality'),
+  done:()=>{ narr(`Three personality matrices, each with a random-looking suffix, plus kube-root-ca.crt (every namespace has one, ignore it).
+
+The suffix is a hash of the contents, added by kustomize. Change one character and you get a new name, so the Deployment's pod template changes, so you get a new revision and a clean rollout. The old ConfigMaps are left behind, which is exactly what makes a rollback possible: revision 6's matrix is still here, untouched.
+
+Match them by AGE: 38 days (rev 5), 23 days (rev 6), and ${fmtAge(now()-S.rollAt)} (rev 7).`); clue('ConfigMaps are hash-named; rev 6\'s matrix is still in the cluster.'); }},
+ {id:'diff', t:'Spot the Difference', g:'Read roles.idx in the ConfigMap revision 7 uses, and in the one revision 6 used. What moved?',
+  h:['describe configmap prints every file in it. roles.idx is the index the units use to pick a personality.','Describe both (Tab completes the names), or describe all of them at once and keep only the index with grep -A (A = lines After the match):\n     kubectl describe cm -n personality | grep -A10 roles.idx',()=>`kubectl describe cm ${S.CM7} -n personality | grep -A10 roles.idx\n     kubectl describe cm ${S.CM6} -n personality | grep -A10 roles.idx`],
+  ok:()=>S.flags.sawCm6&&S.flags.sawCm7,
+  nudge:e=>{ if (e.verb!=='describe'&&e.verb!=='get') return null;
+    if (S.flags.sawCm7&&!S.flags.sawCm6) return `That's revision 7's. Now revision 6's: ${S.CM6}`;
+    if (S.flags.sawCm6&&!S.flags.sawCm7) return `That's revision 6's. Now revision 7's: ${S.CM7}`;
+    return null; },
+  done:()=>{ narr(`Side by side:
+
+  role_id   revision 6              revision 7
+  0         police.pmx              police.pmx
+  1         fire.pmx                nuka.pmx          ← inserted here
+  2         medic.pmx               fire.pmx
+  3         construction.pmx        medic.pmx
+  4                                 construction.pmx  (no unit has role_id 4)
+
+One line inserted, and everything below it moved down one. The units never read the file names. They read "line number ${'<role_id>'}". Fire units are role_id 1, so they got nuka.pmx. Medics are 2 and got fire.pmx. Construction is 3 and got medic.pmx. Police is 0, above the insert, so nothing changed for them.
+
+And the comment at the top of the file said so: "APPEND new roles; never insert or reorder."`); clue('roles.idx is positional. nuka.pmx inserted at role_id 1 shifted fire, medic and construction by one.'); }},
+ {id:'fixidx', q:true, t:'One Line, Three Roles', g:'Marketing still wants their Nuka role. Where in roles.idx should nuka.pmx go so that no existing unit changes personality?  answer top,  answer after-police  or  answer end',
+  h:['Units don\'t look up personalities by name. They load whatever is on line <role_id>. Anything that moves an existing line changes what those units load.','Revision 7 put it after police, and every role below it shifted. Which position moves nothing?','Append it: it becomes role_id 4 and no existing number changes. Type: answer end'],
+  ok:e=>e.verb==='answer'&&judgeIdx(e.text)==='end',
+  nudge:e=>{ if (e.verb!=='answer') return null; const j=judgeIdx(e.text);
+    if (j==='top') return 'Then police would load nuka.pmx and every other role would shift too. That would be worse than tonight.';
+    if (j==='mid') return 'That is exactly what revision 7 did.';
+    return 'Answer with: answer top,  answer after-police  or  answer end'; },
+  done:()=>{ narr(`End. As role_id 4 it moves nothing that already exists, and the promo units get their own id.
+
+That's the Personality team's fix to make tomorrow, in git, through review. It is not something to hand-edit into a live ConfigMap in the middle of an incident. Tonight you only need the fleet back on the index that worked, and revision 6 is still sitting in the cluster.`); clue('Proper fix (for the owners): append nuka.pmx at the end of roles.idx.'); }},
+ {id:'undo', t:'Roll Back', g:'Put matrix-server back on revision 6: roll back the Deployment in personality.',
+  h:['kubectl rollout has an undo subcommand. With no flags it goes back one revision.','kubectl rollout undo deployment/<name> -n <ns>   (add --to-revision=6 to be explicit)','kubectl rollout undo deployment/matrix-server -n personality'],
+  ok:e=>e.verb==='rollout'&&e.sub==='undo'&&e.deploy==='matrix-server'&&e.to===S.CM6,
+  done:()=>{ narr(`Rolled back. Three new matrix-server pods are starting from revision 6's pod template, so they mount ${S.CM6} again.
+
+Two things that surprise people:
+  • Undo doesn't go back in time. It copies revision 6 forward as a NEW revision 8. Run rollout history again and 6 is gone, replaced by 8.
+  • It only changes the cluster, not git. The next merge to the personality repo will deploy revision 7's matrix again, unless the handover reaches the right people first.`); clue('Rolled matrix-server back: revision 8 = revision 6 template.'); }},
+ {id:'status', t:'Land It', g:'Wait for the rollback to finish: ask for the rollout status of matrix-server.',
+  h:['rollout status waits until every new pod is ready and the old ones are gone, then tells you.','kubectl rollout status deployment/<name> -n <ns>','kubectl rollout status deployment/matrix-server -n personality'],
+  ok:e=>e.verb==='rollout'&&e.sub==='status'&&e.deploy==='matrix-server'&&e.success&&S.fixAt!=null,
+  done:()=>{ narr(`"successfully rolled out". Be careful what that means. Revision 7 also "successfully rolled out", ${fmtAge(now()-S.rollAt)} ago, and started all of this.
+
+rollout status tells you the new pods are Ready. It can't tell you the config inside them is right. To know that, look at what the system is actually doing.`); }},
+ {id:'fleet', t:'Back in Service', g:'Confirm the units are going back into service: check the dispatch-router log for units returning. (The header count should be climbing too.)',
+  h:['Same log as before. This time you want units returning, not warnings.','grep for "returned to service", and add -c if you want to count them.','kubectl logs deploy/dispatch-router -n dispatch | grep -i returned'],
+  ok:e=>e.verb==='logs'&&e.deploy==='dispatch-router'&&S.fixAt!=null&&(hasOut(e,/returned to service/) || (e.counted&&(e.greps||[]).some(g=>/return/i.test(g))&&+((e.out||[])[0])>0)),
+  nudge:e=>(e.verb==='logs'&&e.deploy==='dispatch-router'&&S.fixAt!=null)?'No returns in that output yet. Units reload within about half a minute of the rollback: give it a moment, and grep for "returned".':null,
+  done:()=>{ narr(`Units coming back one by one: "unit returned to service: personality matches role". The queued calls are going out. Fire units are saying "Stand clear" again, and nobody else is getting offered a Nuka-Cola.
+
+Units in service: ${unitsUp(now())}/${S.units.length} and climbing. Time to write it down for the people who own the matrix.`); clue('Fleet recovering; queued calls assigned.'); }},
+ {id:'handover', t:'File the Handover', g:'Type  handover  to file the incident with the Personality Platform team.',
+  h:['Just type: handover'], ok:e=>e.verb==='handover', done:()=>finale()},
+];
+const chIdx = id => CH.findIndex(c=>c.id===id);
+const goal = c => typeof c.g==='function' ? c.g() : c.g;
+/* Is this grep pattern one of tonight's quarantined units? */
+function affected(pat){ let re; try { re=new RegExp(pat,'i'); } catch(_){ return false; } return S.units.some(u=>u.role>0 && re.test(u.id)) && /\d{3}/.test(pat); }
+function judgeTime(text, target){
+  const s = String(text).toLowerCase().trim().replace(/\s*ago$/,'').trim();
+  let m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?$/);
+  if (m){
+    let h=+m[1], mi=+m[2]; if (m[3]){ if (h===12) h=0; if (m[3]==='pm') h+=12; }
+    const d=new Date(target), tm=d.getHours()*60+d.getMinutes(), am=h*60+mi;
+    const cd = x => { const q=Math.abs(tm-x)%1440; return Math.min(q,1440-q); };
+    let off = cd(am); if (!m[3]) off = Math.min(off, cd((am+720)%1440));
+    return {ok:off<=20, off};
+  }
+  const iso = String(text).match(TSRE) || String(text).match(/(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d)(?::(\d\d))?/);
+  if (iso){ const t=unG(+iso[1],+iso[2],+iso[3],+iso[4],+iso[5],+(iso[6]||0)); const off=Math.round(Math.abs(t-target)/MIN); return {ok:off<=20, off}; }
+  const d = /^\d+$/.test(s) ? +s*MIN : parseDur(s);
+  if (d!=null){ const off=Math.round(Math.abs((now()-target)-d)/MIN); return {ok:off<=20, off}; }
+  return null;
+}
+function judgeYN(t){ t=String(t).toLowerCase().trim();
+  if (/^(no|nope|nah|n)\b|never|couldn'?t|could not|can'?t|cannot|impossible|not possible|didn'?t|did not|unchanged|same/.test(t)) return 'no';
+  if (/^(yes|yeah|yep|y)\b|^it could|possibly|changed|different|new code/.test(t)) return 'yes'; return null; }
+function judgeNum(t){ const m=String(t).match(/-?\d+/); return m ? +m[0] : null; }
+function judgeIdx(t){ t=String(t).toLowerCase().trim();
+  if (/end|last|bottom|append|after[- ]?construction|^4$|line 4|role_?id 4/.test(t)) return 'end';
+  if (/after[- ]?police|second|^1$|middle|where it (is|was)|same place/.test(t)) return 'mid';
+  if (/top|first|start|begin|^0$|before[- ]?police/.test(t)) return 'top';
+  return null; }
+function clue(t){ if (!S.clues.includes(t)) S.clues.push(t); renderSide(); }
+function missionText(){ const c=CH[S.chapter]; return `▶ MISSION ${S.chapter+1}/${CH.length}: ${c.t}\n  ${goal(c)}`; }
+function showMission(){ if (!S.done) blk(missionText(),'mission'); }
+function emit(e){
+  if (EMITQ){ EMITQ.push(e); return; }
+  if (S.done) return;
+  const c = CH[S.chapter];
+  if (c.ok(e)){
+    c.done(); S.chapter++; S.hintIdx=0;
+    if (S.chapter < CH.length) showMission(); else S.done = true;
+    renderSide();
+  } else {
+    const n = c.nudge ? c.nudge(e) : null;
+    /* A wrong answer counts against the report card; "check the evidence first" and format help don't. */
+    if (e.verb==='answer' && c.q && !/^(Check the evidence|Answer with)/.test(n||'')) S.miss[S.chapter] = (S.miss[S.chapter]||0) + 1;
+    if (n) tip(n);
+  }
+}
+function renderSide(){
+  $('#hNs').textContent = S.ns;
+  const n = Math.min(S.chapter, CH.length);
+  $('#hM').textContent = S.done ? 'handed over' : `${S.chapter+1}/${CH.length}`;
+  $('#mBar').style.width = (S.done?100:n/CH.length*100)+'%';
+  if (S.done){ $('#mTitle').textContent='Shift over'; $('#mGoal').textContent='Type results to see your report card again, or restart to run the shift again.'; }
+  else { const c=CH[S.chapter]; $('#mTitle').textContent=`${S.chapter+1}. ${c.t}`; $('#mGoal').textContent=goal(c); }
+  const ul=$('#clues'); ul.innerHTML='';
+  if (!S.clues.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='Nothing written down yet.'; ul.appendChild(li); }
+  S.clues.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); });
+}
+function hint(){
+  if (S.done){ dim('The shift is over. Type results for your report card, or restart to run it again.'); return; }
+  const c = CH[S.chapter], i = Math.min(S.hintIdx, c.h.length-1);
+  S.hints++; S.hintIdx++;
+  S.hintMax[S.chapter] = Math.max(S.hintMax[S.chapter]||0, i+1);
+  const hv = typeof c.h[i]==='function' ? c.h[i]() : c.h[i];
+  tip(`Hint ${i+1}/${c.h.length}: ${hv}`);
+}
+
+/* ---------- story ---------- */
+function briefing(){
+  blk(`  ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL
+  COPYRIGHT 2075-2077 ROBCO INDUSTRIES
+  - FLEET OPERATIONS · BOSTON METRO CONTRACT -
+
+  WELCOME, FLEETOPS. ${(()=>{ const g=G(now()); return `${DAYS[g.getDay()]} ${p2(g.getDate())} ${MONS[g.getMonth()]} 2077, ${clock(now())}`.toUpperCase(); })()}`,'banner');
+  blk(`The page comes in at ${clock(now())}.
+
+  FIRING  FleetAvailabilityLow   ${unitsUp(now())} of ${S.units.length} Protectrons in service (since ${clock(S.alertAt)})
+  FIRING  CallQueueBacklog       ${callsWaiting()} calls waiting: fire, medic, construction
+  NOTE    primary on-call did not acknowledge. Escalated to you.
+
+From the city contract desk, ${clock(now()-16*MIN)}:
+  "Your fire Protectron walked into a kitchen fire on Beacon Hill and
+   offered the homeowner a Nuka-Cola. The medic unit in the North End tried
+   to put out a man with a sprained ankle. Please advise."
+
+Every pod on the fleet cluster says Running. Nothing is crash-looping.
+Something is still very wrong.
+
+You're Tier 2 fleet support. You can read anything, roll a Deployment back,
+and hand the rest to the Personality Platform team in the morning. If this
+reaches the papers, General Atomics will be selling the city Mr. Handys
+by Monday.`,'story');
+  dim(`This is the proficient case: fewer signposts, more digging. help = game commands · status = fleet board · hint = a nudge · Tab = autocomplete.`);
+  showMission();
+}
+function finale(){
+  S.done = true; S.endAt = now();
+  const lastBack = S.fixReady ? S.fixReady + Math.max(...S.units.map(u=>u.backOff)) : now();
+  blk(`INCIDENT RCO-INC-4471 → Personality Platform team (Tier 3)     severity 2 · boston-metro
+
+  What broke   28 of 48 Protectrons taken out of service by dispatch after declining
+               calls outside their personality scope. Fire, medic and construction
+               affected; police unaffected. Calls queued with no unit to take them.
+  Timeline     ${fmtShort(S.promoAt)}  marketing/nuka-promo deployed: ImagePullBackOff (tag 2.0-quantum
+                                 not found). Never ran. Unrelated
+               ${fmtShort(S.rollAt)}  personality/matrix-server revision 7 (RCO-4471) rolls out
+               ${fmtShort(S.rollAt+70*SEC)}  fleet reloads ${S.CM7}
+               ${fmtShort(S.firstQ)}  first unit quarantined
+               ${fmtShort(S.lastQ)}  last unit quarantined (28/48)
+               ${fmtShort(T0)}  on-call paged (escalated from primary)
+               ${fmtShort(S.fixAt||now())}  rolled back: revision 8 = revision 6 template (${S.CM6})
+               ${fmtShort(lastBack)}  48/48 units back in service; queued calls assigned
+  Why          roles.idx is positional: role_id = line number, and units keep their
+               role_id in firmware. Revision 7 inserted nuka.pmx after police instead of
+               appending it. fire → nuka.pmx, medic → fire.pmx, construction → medic.pmx.
+               Same image (matrix-server 4.7.2): a config-only change.
+  Actions      • kubectl rollout undo deployment/matrix-server -n personality
+               • Left ${S.CM7} and marketing/nuka-promo in place for review
+  Please       • Re-land RCO-4471 with nuka.pmx APPENDED (role_id 4). Until then,
+                 the next merge will redeploy revision 7's matrix.
+               • Add a CI check that existing role_ids never move.
+               • Tell marketing their image tag doesn't exist before the 08:00 launch.
+               • Review paging: units were misbehaving for ${fmtAge(T0-S.rollAt)} before anyone was woken.
+  Next review  Sat 23 Oct 2077, 10:00 · Personality Platform stand-up`,'mission');
+  narr(`HANDOVER FILED. The fleet is back on the index that worked.
+
+Nobody meant any harm and nothing crashed. One line went into a file in the wrong place, passed review and rolled out cleanly. Every dashboard stayed green while fire units offered house fires a Nuka-Cola. Incidents like that are why you learn to dig through logs: the cluster was healthy and the configuration was wrong.
+
+See you at Saturday's stand-up. It should be a quiet weekend.`);
+  blk(`Your cheat sheet:
+  kubectl get pods -A | grep -v Running                      everything that isn't healthy, cluster-wide
+  kubectl describe pod <pod> -n <ns>                         ImagePullBackOff + 0 restarts = never ran
+  kubectl logs deploy/<name> -n <ns> | grep -i warn          one pod's warnings
+  kubectl logs -l app=<name> -n <ns> --prefix --tail=-1      every pod of an app (-l alone = last 10 each)
+  … | grep -c <text>                                         count the matching lines
+  … | grep -A10 <text>                                       each match plus the 10 lines after it
+  … | awk '{print $5}' | sort | uniq -c                      tally a column
+  kubectl get rs -n <ns>            (-o wide)                one per revision; AGE = when it rolled out
+  kubectl rollout history deploy/<name> -n <ns>  (--revision=N)    what changed, and why
+  kubectl get cm -n <ns>  ·  kubectl describe cm <name> -n <ns>    read the config itself
+  kubectl rollout undo deploy/<name> -n <ns>                 back one revision (it becomes a NEW one)
+  kubectl rollout status deploy/<name> -n <ns>               Ready ≠ correct
+  Events expire after ~1 hour. ReplicaSet ages and logs don't.`,'raw');
+  showCard();
+  dim(`Type results to see this card again, or restart to run a new shift. (Unit serials and pod names change every game.)`);
+  renderSide();
+}
+
+/* ---------- report card ---------- */
+/* The same card closes every case: one screenshot of it is a record of the run. */
+const CARD = {key:'robco', name:'RobCo: Personality Crisis', level:'proficient',
+  kicker:'RobCo Industries · Employee performance review', person:'Engineer',
+  ranks:['Exceeds expectations','Meets all expectations','Meets expectations','Satisfactory'],
+  extra:null};
+function store(k, v){
+  try { if (v===undefined){ const s=localStorage.getItem(k); return s ? JSON.parse(s) : null; } localStorage.setItem(k, JSON.stringify(v)); } catch(e){}
+  return null;
+}
+function fmtDur(ms){ const s=Math.max(0,Math.round(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60); return h ? `${h}h ${p2(m)}m` : `${m}m ${p2(s%60)}s`; }
+function runStats(){
+  const possible = CH.reduce((s,c)=>s+c.h.length,0);
+  const used = CH.reduce((s,c,i)=>s+Math.min(S.hintMax[i]||0,c.h.length),0);
+  const qs = CH.map((c,i)=>c.q?i:-1).filter(i=>i>=0);
+  const first = qs.filter(i=>!S.miss[i] && (S.done || i<S.chapter)).length;
+  const f = possible ? used/possible : 0;
+  const rank = (used===0 && first===qs.length && (!CARD.clean || CARD.clean())) ? 0 : f<=0.10 ? 1 : f<=0.35 ? 2 : 3;
+  return {possible, used, qs:qs.length, first, rank, ms:(S.endAt||now())-S.startAt, missions:S.done?CH.length:S.chapter};
+}
+function showCard(){
+  const st = runStats();
+  if (S.done && !S.bestChecked){
+    S.bestChecked = true;
+    const prev = store('ktg-best-'+CARD.key);
+    S.prevBest = prev;
+    S.newBest = !prev || st.used < prev.used || (st.used===prev.used && S.cmds < prev.cmds);
+    if (S.newBest) store('ktg-best-'+CARD.key, {used:st.used, possible:st.possible, cmds:S.cmds, ms:st.ms, at:Date.now()});
+  }
+  const el = (tag, cls, text) => { const x=document.createElement(tag); if (cls) x.className=cls; if (text!=null) x.textContent=text; return x; };
+  const card = el('div','rc');
+  const top = el('div','rc-top'), head = el('div');
+  head.append(el('div','rc-kick',CARD.kicker));
+  const nm = el('div','rc-case',CARD.name+' '); nm.append(el('span',null,'· '+CARD.level)); head.append(nm);
+  top.append(head, el('div', S.done ? 'rc-stamp' : 'rc-stamp wip', S.done ? CARD.ranks[st.rank] : 'In progress'));
+  const who = el('div','rc-who'), lab = el('label',null,CARD.person), name = el('input');
+  name.className = 'rc-name'; name.placeholder = 'type your name'; name.maxLength = 40; name.setAttribute('aria-label','Your name, for the report card');
+  try { name.value = localStorage.getItem('ktg-name') || ''; } catch(e){}
+  name.addEventListener('input', () => { try { localStorage.setItem('ktg-name', name.value); } catch(e){} });
+  lab.append(name);
+  const when = new Date().toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  who.append(lab, el('span',null,(S.done?'Completed ':'Started ')+when+' · '+fmtDur(st.ms)));
+  const stats = el('div','rc-stats');
+  const stat = (big, small, label) => { const d=el('div'), b=el('b',null,String(big)); if (small!=null) b.append(el('small',null,'/'+small)); d.append(b, el('span',null,label)); stats.append(d); };
+  stat(st.missions, CH.length, 'missions');
+  stat(S.cmds, null, 'commands run');
+  stat(st.used, st.possible, 'hints used');
+  stat(st.first, st.qs, 'answered first try');
+  const known = MANUAL.filter(m=>S.learned.has(m[0])).length;
+  stat(known, MANUAL.length, 'field manual');
+  if (CARD.extra){ const x=CARD.extra(); if (x) stat(x[0], x[1], x[2]); }
+  const strip = el('div','rc-strip');
+  strip.setAttribute('role','img');
+  CH.forEach((c,i)=>{
+    const lv = S.hintMax[i]||0, reached = S.done || i<S.chapter;
+    const cls = !reached ? 'c3' : lv===0 ? 'c0' : lv>=c.h.length ? 'c2' : 'c1';
+    const cell = el('i', cls + (S.miss[i] ? ' miss' : ''));
+    cell.title = `${i+1}. ${c.t}: ` + (!reached ? 'not reached' : lv===0 ? 'no hints' : lv>=c.h.length ? 'answer shown' : `${lv} of ${c.h.length} hints`) + (S.miss[i] ? `, ${S.miss[i]} wrong answer${S.miss[i]>1?'s':''}` : '');
+    strip.append(cell);
+  });
+  strip.setAttribute('aria-label', `Missions: ${CH.map((c,i)=>(S.hintMax[i]||0)===0?'clean':'hinted').filter(x=>x==='clean').length} of ${CH.length} with no hints`);
+  const legend = el('div','rc-legend');
+  const lg = (cls, text) => { const s=el('span'); s.append(el('i',cls), document.createTextNode(text)); legend.append(s); };
+  lg('c0','no hints'); lg('c1','some hints'); lg('c2','answer shown'); lg('c0 miss','wrong answer first');
+  const foot = el('div','rc-foot');
+  const bits = [`${S.kube} kubectl`, `${S.piped} piped`]; if (S.watches) bits.push(`${S.watches} watch`); if (S.hints > st.used) bits.push(`${S.hints} hint requests`);
+  foot.append(el('span',null,bits.join(' · ')));
+  const best = S.prevBest;
+  if (S.done && S.newBest && best) foot.append(el('span','new',`New personal best (was ${best.used} hints, ${best.cmds} commands)`));
+  else if (S.done && S.newBest) foot.append(el('span','new','First completed run on this browser'));
+  else if (best) foot.append(el('span',null,`Personal best: ${best.used}/${best.possible} hints, ${best.cmds} commands, ${fmtDur(best.ms)}`));
+  const copy = el('button',null,'Copy summary');
+  copy.type = 'button';
+  copy.addEventListener('click', () => {
+    const txt = [`kubectl Training Ground: ${CARD.name} (${CARD.level})`,
+      `${CARD.person}: ${name.value.trim()||'(unnamed)'} · ${S.done?'completed':'in progress'} ${when} in ${fmtDur(st.ms)}`,
+      `Missions ${st.missions}/${CH.length} · Commands ${S.cmds} (${S.kube} kubectl, ${S.piped} piped) · Hints ${st.used}/${st.possible} · First-try answers ${st.first}/${st.qs} · Field manual ${known}/${MANUAL.length}` + (CARD.extra && CARD.extra() ? ` · ${CARD.extra()[2]} ${CARD.extra()[0]}` : ''),
+      S.done ? `Rating: ${CARD.ranks[st.rank]}` : ''].filter(Boolean).join('\n');
+    const done = () => { copy.textContent = 'Copied ✓'; setTimeout(()=>copy.textContent='Copy summary', 1600); };
+    const fallback = () => { const ta=el('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.append(ta); ta.select(); try { document.execCommand('copy'); done(); } catch(e){} ta.remove(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback); else fallback();
+  });
+  foot.append(copy);
+  card.append(top, who, stats, el('div','rc-sub','Mission by mission'), strip, legend, foot);
+  out.appendChild(card); out.scrollTop = out.scrollHeight;
+}
+
+/* ---------- parsing ---------- */
+const RT = {statefulset:'statefulsets',statefulsets:'statefulsets',sts:'statefulsets','statefulset.apps':'statefulsets','statefulsets.apps':'statefulsets',pod:'pods',pods:'pods',po:'pods',deployment:'deployments',deployments:'deployments',deploy:'deployments','deployment.apps':'deployments','deployments.apps':'deployments',
+  namespace:'namespaces',namespaces:'namespaces',ns:'namespaces',service:'services',services:'services',svc:'services',event:'events',events:'events',ev:'events',
+  node:'nodes',nodes:'nodes',no:'nodes',job:'jobs',jobs:'jobs',cronjob:'cronjobs',cronjobs:'cronjobs',cj:'cronjobs',replicaset:'replicasets',replicasets:'replicasets',rs:'replicasets','replicaset.apps':'replicasets','replicasets.apps':'replicasets',
+  configmap:'configmaps',configmaps:'configmaps',cm:'configmaps',all:'all'};
+const VERBS = ['get','describe','logs','scale','delete','rollout','config','top','version','cluster-info','explain'];
+const GAME = ['watch','help','hint','mission','status','notes','codes','clear','answer','handover','results','restart','history'];
+const FLAGS = ['-n','--namespace','-A','--all-namespaces','-o','-l','--previous','--prefix','--tail=','--since=','--timestamps','--replicas=','--revision=','--to-revision=','--show-labels','--current','-c'];
+/* Shell-style words: quotes group, and can sit inside a word (-d' ', -F'=' …). */
+function tokenize(s){
+  const r=[]; let cur=null, q=null;
+  for (const ch of s){
+    if (q){ if (ch===q) q=null; else cur+=ch; continue; }
+    if (ch==='"'||ch==="'"){ q=ch; if (cur===null) cur=''; continue; }
+    if (/\s/.test(ch)){ if (cur!==null){ r.push(cur); cur=null; } continue; }
+    cur = (cur||'') + ch;
+  }
+  if (cur!==null) r.push(cur);
+  return r;
+}
+function parseFlags(args){
+  const o={selector:null,timestamps:false,since:null,ns:null,all:false,out:null,prev:false,tail:null,follow:false,replicas:null,container:null,current:false,watch:false,allFlag:false,prefix:false,labels:false,revision:null,toRev:null,pos:[],unknown:[],missing:null};
+  const need = (i,f) => { if (args[i+1]===undefined){ o.missing=f; return null; } return args[i+1]; };
+  for (let i=0;i<args.length;i++){
+    const a=args[i];
+    if (a==='-n'||a==='--namespace'){ o.ns=need(i,a); i++; }
+    else if (a.startsWith('--namespace=')) o.ns=a.slice(12);
+    else if (/^-n[a-z0-9]/.test(a)) o.ns=a.slice(2);
+    else if (a==='-A'||a==='--all-namespaces') o.all=true;
+    else if (a==='-l'||a==='--selector'){ o.selector=need(i,a); i++; }
+    else if (a.startsWith('--selector=')) o.selector=a.slice(11);
+    else if (/^-l./.test(a)) o.selector=a.slice(2).replace(/^=/,'');
+    else if (a==='-o'||a==='--output'){ o.out=need(i,a); i++; }
+    else if (a.startsWith('--output=')) o.out=a.slice(9);
+    else if (/^-o[a-z]/.test(a)) o.out=a.slice(2);
+    else if (a==='-p'||a==='--previous') o.prev=true;
+    else if (a==='--tail'){ o.tail=need(i,a); i++; }
+    else if (a.startsWith('--tail=')) o.tail=a.slice(7);
+    else if (a==='-f'||a==='--follow') o.follow=true;
+    else if (a==='-w'||a==='--watch') o.watch=true;
+    else if (a==='--replicas'){ o.replicas=need(i,a); i++; }
+    else if (a.startsWith('--replicas=')) o.replicas=a.slice(11);
+    else if (a==='--revision'){ o.revision=need(i,a); i++; }
+    else if (a.startsWith('--revision=')) o.revision=a.slice(11);
+    else if (a==='--to-revision'){ o.toRev=need(i,a); i++; }
+    else if (a.startsWith('--to-revision=')) o.toRev=a.slice(14);
+    else if (a==='-c'||a==='--container'){ o.container=need(i,a); i++; }
+    else if (a.startsWith('--container=')) o.container=a.slice(12);
+    else if (a==='--current') o.current=true;
+    else if (a==='--all') o.allFlag=true;
+    else if (a==='--prefix') o.prefix=true;
+    else if (a==='--show-labels') o.labels=true;
+    else if (a==='--timestamps') o.timestamps=true;
+    else if (a==='--since'){ o.since=need(i,a); i++; }
+    else if (a.startsWith('--since=')) o.since=a.slice(8);
+    else if (a==='--sort-by'||a==='--max-log-requests'){ need(i,a); i++; }
+    else if (a.startsWith('--sort-by=')||a.startsWith('--max-log-requests=')||a==='--all-containers'||a.startsWith('--all-containers=')) {}
+    else if (a==='--minify'||a==='--force'||a==='--grace-period=0'||a==='--no-headers') { if (a==='--no-headers') o.noHeaders=true; }
+    else if (a.startsWith('-')) o.unknown.push(a);
+    else o.pos.push(a);
+  }
+  return o;
+}
+function nsCheck(ns){
+  if (!S.namespaces.find(n=>n.name===ns)) tip(`(There is no namespace called "${ns}". List them with kubectl get ns.)`);
+}
+function whereIs(name, kind='pods'){
+  if (kind==='pods'){
+    const exact = S.pods.find(p=>p.name===name);
+    if (exact) return `That pod lives in the ${exact.ns} namespace. Add -n ${exact.ns}.`;
+    const pre = S.pods.find(p=>p.name.startsWith(name+'-') || p.dep===name);
+    if (pre) return `Pod names have a random suffix, like ${pre.name}. Type the start of the name and press Tab, or use deploy/${pre.dep} -n ${pre.ns}.`;
+  } else if (kind==='deployments'){
+    const d = S.deps.find(d=>d.name===name);
+    if (d && d.sts) return `${name} is a StatefulSet, not a Deployment. Try kubectl get sts -n ${d.ns}.`;
+    if (d) return `There is a ${name} deployment in the ${d.ns} namespace. Add -n ${d.ns}.`;
+    const p = S.pods.find(p=>p.name===name);
+    if (p) return `That is a pod name. The deployment that manages it is called ${p.dep}.`;
+  } else if (kind==='configmaps'){
+    const c = S.cms.find(c=>c.name===name || c.name.startsWith(name));
+    if (c && c.name!=='kube-root-ca.crt') return `There is a ConfigMap called ${c.name} in the ${c.ns} namespace. Add -n ${c.ns}.`;
+  }
+  return null;
+}
+function splitTypeName(o){
+  let t=o.pos[1], names=o.pos.slice(2);
+  if (t && t.includes('/')){ const [a,b]=t.split('/'); t=a; names=[b,...names]; }
+  return {type: t ? RT[t.toLowerCase()] : undefined, rawType:t, names};
+}
+
+/* ---------- kubectl ---------- */
+function kubectl(args){
+  const o = parseFlags(args);
+  if (o.missing){ err(`error: flag needs an argument: ${o.missing}`); return; }
+  if (o.unknown.length){ err(`error: unknown flag: ${o.unknown[0]}\nSee 'kubectl --help' for usage.`); return; }
+  const verb = o.pos[0];
+  const ns = o.ns || S.ns;
+  if (o.selector!=null){
+    const ps = parseSelector(o.selector); if (ps.error){ err(ps.error); return; }
+    o.sel = ps.reqs;
+    if (verb==='delete'){ tip(`Deleting by label (-l) removes every pod that matches at once, and one typo in the selector can take out the wrong pods. That's a Tier 3 call. (Blocked in this sim.) To see what a selector matches, run: kubectl get pods -n ${ns} -l '${o.selector}'`); return; }
+    if (!['get','describe','logs','log'].includes(verb)){ tip('Label selectors (-l) work with get, describe and logs in this sim.'); return; }
+  }
+  if (!verb){ kHelp(); return; }
+  switch (verb){
+    case 'get': return cmdGet(o, ns);
+    case 'describe': return cmdDescribe(o, ns);
+    case 'logs': case 'log': return cmdLogs(o, ns);
+    case 'scale': return cmdScale(o, ns);
+    case 'delete': return cmdDelete(o, ns);
+    case 'rollout': return cmdRollout(o, ns);
+    case 'config': return cmdConfig(o);
+    case 'top': return cmdTop(o, ns);
+    case 'version': raw(`Client Version: v1.34.1\nKustomize Version: v5.7.1\nServer Version: v1.33.4`); return;
+    case 'cluster-info': raw(`Kubernetes control plane is running at https://api.robco-boston.internal:6443\nCoreDNS is running at https://api.robco-boston.internal:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy`); return;
+    case 'help': case '--help': case '-h': kHelp(); return;
+    case 'explain': raw(`KIND:     ${(o.pos[1]||'Pod')}\nVERSION:  v1\n\nDESCRIPTION:\n  (explain prints API docs. In real life, try: kubectl explain deployment.spec.revisionHistoryLimit)`); return;
+    case 'edit': {
+      const t = RT[(o.pos[1]||'').split('/')[0]];
+      if (t==='configmaps') tip(`Tempting: open the ConfigMap, move nuka.pmx to the end, save. Three reasons not to:\n  • The name is a content hash. Your edit leaves the name the same but the contents different, so the next person to read it is misled.\n  • matrix-server only reads the index when it starts, and nothing tells it the file changed.\n  • The next CI run overwrites it from git anyway.\nThe fix goes in git, through review. Tonight, roll back to a revision that is already known good. (Blocked in this sim.)`);
+      else tip(`kubectl edit opens a live object in a text editor, and your changes take effect the moment you save. Tonight you need a revision that is already known good, not a hand edit. To just read it: kubectl describe … (Blocked in this sim.)`);
+      return; }
+    case 'exec': case 'apply': case 'create': case 'patch': case 'port-forward': case 'cp': case 'drain': case 'cordon': case 'uncordon': case 'label': case 'annotate': case 'set': case 'run': case 'expose': case 'attach': case 'replace': case 'taint': case 'debug': case 'diff':
+      tip(`kubectl ${verb} is a real command, but it's not part of this case. You're Tier 2: you read, you roll back, and you hand the rest to the people who own it.`); return;
+    default: {
+      const sug = VERBS.find(v=>v.startsWith(verb.slice(0,2)));
+      err(`error: unknown command "${verb}" for "kubectl"${sug?`\n\nDid you mean this?\n\t${sug}`:''}`);
+    }
+  }
+}
+function kHelp(){
+  raw(`kubectl controls the Kubernetes cluster manager.
+
+Commands available in this simulation:
+  get          Display one or many resources
+  describe     Show details of a specific resource
+  logs         Print the logs for a container in a pod
+  rollout      history | undo | status | restart of a deployment
+  scale        Set a new size for a deployment
+  delete       Delete a pod (it will be recreated by its deployment)
+  config       set-context | get-contexts | current-context | view
+  top          Display CPU/memory usage of pods or nodes
+  version, cluster-info
+
+Common flags:
+  -n, --namespace <ns>    work in a specific namespace
+  -A, --all-namespaces    look across every namespace
+  -o wide | name | yaml   extra columns, names only, or (configmaps) the full object
+  -l, --selector <label>  only matching pods, e.g. -l app=unit-gateway (get, describe, logs)
+  --show-labels           (get) add a LABELS column
+  --prefix                (logs) start each line with the pod it came from
+  --tail=<n>              (logs) only the last n lines; -1 = all (with -l the default is 10)
+  --since=<1h|10m>        (logs) only lines from the last hour / 10 min
+  --revision=<n>          (rollout history) show one revision in full
+  --to-revision=<n>       (rollout undo) go back to a specific revision
+
+Pipes:  | grep [-i -v -c -n -w -o -E -A n -B n -C n -m n]  | sort [-n -r -u -k n]  | uniq [-c]
+        | awk '{print $n}'  | cut -d<c> -f<n>  | head  | tail  | wc -l
+Also:   watch -n 1 <kubectl command>`);
+}
+
+function podRow(p, all, wide, labels){
+  const v = pv(p);
+  const rs = v.restarts ? `${v.restarts}${v.lastRestart?` (${fmtAge(now()-v.lastRestart)} ago)`:''}` : '0';
+  const r = [p.name, v.ready, v.status, rs, fmtAge(now()-p.created)];
+  if (all) r.unshift(p.ns);
+  if (wide) r.push(v.kind==='creating'?'<none>':p.ip, p.node, '<none>', '<none>');
+  if (labels) r.push(Object.entries(podLabels(p)).map(([k,v])=>`${k}=${v}`).join(','));
+  return r;
+}
+function depReady(d){ return S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&!p.term&&pv(p).ready==='1/1').length; }
+function depLive(d){ return S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&!p.term).length; }
+function curRev(d){ return d.revs ? d.revs[d.revs.length-1] : null; }
+/* One row per ReplicaSet. matrix-server has one per revision; older ones sit at 0. */
+function rsList(d){
+  if (d.revs) return d.revs.map(r=>({name:`${d.name}-${r.hash}`, rev:r, desired: r.hash===d.hash ? d.replicas : 0,
+    live:S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&p.hash===r.hash&&!p.term).length,
+    ready:S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&p.hash===r.hash&&!p.term&&pv(p).ready==='1/1').length, created:r.created}))
+    .sort((a,b)=>a.created-b.created);
+  return [...d.old.map(h=>({name:`${d.name}-${h}`,desired:0,live:0,ready:0,created:d.created})), {name:`${d.name}-${d.hash}`,desired:d.replicas,live:depLive(d),ready:depReady(d),created:d.created}];
+}
+function syntheticEvents(ns, all){
+  const list=[];
+  for (const p of S.pods){
+    if (!all && p.ns!==ns) continue;
+    if (p.pull && !p.term){
+      const img = APPS[p.dep].img, first = p.created + 1500, age = now()-first, tries = Math.max(1, Math.floor(age/(5*MIN))+1);
+      const last = first + (tries-1)*5*MIN;
+      const B = (reason,type,msg,count,f,t) => list.push({ns:p.ns,type,reason,obj:`pod/${p.name}`,msg,src:'kubelet',t,first:f,count});
+      B('Pulling','Normal',`Pulling image "${img}"`,tries,first,last);
+      B('Failed','Warning',`Failed to pull image "${img}": rpc error: code = NotFound desc = failed to pull and unpack image "${img}": failed to resolve reference "${img}": ${img}: not found`,tries,first+900,last+900);
+      B('Failed','Warning','Error: ErrImagePull',tries,first+901,last+901);
+      B('BackOff','Normal',`Back-off pulling image "${img}"`,Math.floor(age/(20*SEC))+2,first+2000,now()-(3+Math.floor((now()/1000)%9))*SEC);
+      B('Failed','Warning','Error: ImagePullBackOff',Math.floor(age/(20*SEC))+2,first+2001,now()-(3+Math.floor((now()/1000)%9))*SEC+1);
+    }
+  }
+  return list;
+}
+function eventsFor(ns, all){
+  const t=now();
+  return S.events.filter(e=>(all||e.ns===ns) && e.t<=t && (e.keep || e.t>t-HOUR)).concat(syntheticEvents(ns,all)).sort((a,b)=>a.t-b.t);
+}
+
+function cmdGet(o, ns){
+  const {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`You must specify the type of resource to get. Use "kubectl api-resources" for a complete list of supported resources.\n\nerror: Required resource not specified.`); return; }
+  if (rawType.includes(',')){ tip('Comma-separated types (pods,svc) work in real kubectl, but this sim takes one type at a time. Try kubectl get all.'); return; }
+  if (!type){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (o.out==='yaml' && type==='configmaps') return cmYaml(o, ns, names);
+  if (o.out && !['wide','name'].includes(o.out)){ tip(`-o ${o.out} works in real kubectl (it prints the full object). This sim supports -o wide and -o name, plus -o yaml for configmaps. To read everything about an object, use kubectl describe.`); return; }
+  if (o.watch) dim(`(-w isn't simulated; showing the current state. For a live view that refreshes itself, try: watch -n 1 kubectl get ${rawType}${o.ns?' -n '+o.ns:''})`);
+  const all = o.all, wide = o.out==='wide', nameOnly = o.out==='name';
+  if (!all && type!=='namespaces' && type!=='nodes' && o.ns) nsCheck(ns);
+  const none = () => raw(all ? 'No resources found' : `No resources found in ${ns} namespace.`);
+  const notFound = (kind, n) => { err(`Error from server (NotFound): ${kind} "${n}" not found`); const w = whereIs(n, kind==='deployments.apps'?'deployments':kind==='configmaps'?'configmaps':'pods'); if (w) tip(w); };
+  const hd = rows => o.noHeaders ? rows.slice(1) : rows;
+
+  if (type==='pods'){
+    learn(all?'getpodsA':'getpods'); if (wide) learn('wide');
+    let list = S.pods.filter(p=>all||p.ns===ns).sort((a,b)=>(a.ns+a.name).localeCompare(b.ns+b.name));
+    if (names.length && o.sel){ err('error: name cannot be provided when a selector is specified'); return; }
+    if (names.length){
+      for (const n of names) if (!list.find(p=>p.name===n)){ notFound('pods',n); return; }
+      list = list.filter(p=>names.includes(p.name));
+    }
+    if (o.sel) list = list.filter(p=>selMatch(p,o.sel));
+    if (!list.length){ none(); emit({verb:'get',kind:'pods',ns,all}); return; }
+    if (nameOnly){ raw(list.map(p=>'pod/'+p.name).join('\n')); }
+    else {
+      const head = ['NAME','READY','STATUS','RESTARTS','AGE']; if (all) head.unshift('NAMESPACE'); if (wide) head.push('IP','NODE','NOMINATED NODE','READINESS GATES'); if (o.labels) head.push('LABELS');
+      raw(table(hd([head, ...list.map(p=>podRow(p,all,wide,o.labels))])));
+    }
+    emit({verb:'get',kind:'pods',ns,all});
+    return;
+  }
+  if (type==='namespaces'){
+    let list = S.namespaces;
+    if (names.length){ for (const n of names) if (!list.find(x=>x.name===n)){ err(`Error from server (NotFound): namespaces "${n}" not found`); return; } list=list.filter(x=>names.includes(x.name)); }
+    raw(nameOnly ? list.map(n=>'namespace/'+n.name).join('\n') : table(hd([['NAME','STATUS','AGE'], ...list.map(n=>[n.name,'Active',fmtAge(now()-n.created)])])));
+    emit({verb:'get',kind:'namespaces'}); return;
+  }
+  if (type==='deployments'){
+    learn('getdeploy');
+    let list = S.deps.filter(d=>(all||d.ns===ns) && !d.sts);
+    if (names.length){ for (const n of names) if (!list.find(d=>d.name===n)){ notFound('deployments.apps',n); return; } list=list.filter(d=>names.includes(d.name)); }
+    if (!list.length){ none(); return; }
+    const head=['NAME','READY','UP-TO-DATE','AVAILABLE','AGE']; if (all) head.unshift('NAMESPACE'); if (wide) head.push('CONTAINERS','IMAGES','SELECTOR');
+    raw(nameOnly ? list.map(d=>'deployment.apps/'+d.name).join('\n') : table(hd([head, ...list.map(d=>{ const r=[d.name,`${depReady(d)}/${d.replicas}`,d.replicas,depReady(d),fmtAge(now()-d.created)]; if(all) r.unshift(d.ns); if(wide) r.push(APPS[d.name].c,APPS[d.name].img,`app=${d.name}`); return r; })])));
+    emit({verb:'get',kind:'deployments',ns,all}); return;
+  }
+  if (type==='statefulsets'){
+    let list = S.deps.filter(d=>(all||d.ns===ns) && d.sts);
+    if (names.length){ for (const n of names) if (!list.find(d=>d.name===n)){ err(`Error from server (NotFound): statefulsets.apps "${n}" not found`); return; } list=list.filter(d=>names.includes(d.name)); }
+    if (!list.length){ none(); return; }
+    const head=['NAME','READY','AGE']; if (all) head.unshift('NAMESPACE'); if (wide) head.push('CONTAINERS','IMAGES');
+    raw(nameOnly ? list.map(d=>'statefulset.apps/'+d.name).join('\n') : table(hd([head, ...list.map(d=>{ const r=[d.name,`${depReady(d)}/${d.replicas}`,fmtAge(now()-d.created)]; if(all) r.unshift(d.ns); if(wide) r.push(APPS[d.name].c,APPS[d.name].img); return r; })])));
+    emit({verb:'get',kind:'statefulsets',ns,all}); return;
+  }
+  if (type==='replicasets'){
+    learn('getrs');
+    const list = S.deps.filter(d=>(all||d.ns===ns) && !d.sts);
+    if (!list.length){ none(); return; }
+    let rows=[]; for (const d of list) for (const r of rsList(d)) rows.push({d,r});
+    if (names.length){ rows = rows.filter(x=>names.includes(x.r.name)); if (!rows.length){ err(`Error from server (NotFound): replicasets.apps "${names[0]}" not found`); return; } }
+    const head=[...(all?['NAMESPACE']:[]),'NAME','DESIRED','CURRENT','READY','AGE']; if (wide) head.push('CONTAINERS','IMAGES','SELECTOR');
+    if (wide && rows.some(x=>x.d.name==='matrix-server')) S.flags.sawRevDetail = true;
+    raw(nameOnly ? rows.map(x=>'replicaset.apps/'+x.r.name).join('\n') : table(hd([head, ...rows.map(({d,r})=>{ const row=[...(all?[d.ns]:[]),r.name,r.desired,r.live,r.ready,fmtAge(now()-r.created)]; if (wide) row.push(APPS[d.name].c,APPS[d.name].img,`app=${d.name},pod-template-hash=${r.name.slice(d.name.length+1)}`); return row; })])));
+    emit({verb:'get',kind:'replicasets',ns,all}); return;
+  }
+  if (type==='configmaps'){
+    learn('getcm');
+    let list = S.cms.filter(c=>all||c.ns===ns).sort((a,b)=>(a.ns+a.name).localeCompare(b.ns+b.name));
+    if (names.length){ for (const n of names) if (!list.find(c=>c.name===n)){ notFound('configmaps',n); return; } list=list.filter(c=>names.includes(c.name)); }
+    if (!list.length){ none(); return; }
+    raw(nameOnly ? list.map(c=>'configmap/'+c.name).join('\n') : table(hd([[...(all?['NAMESPACE']:[]),'NAME','DATA','AGE'], ...list.map(c=>[...(all?[c.ns]:[]),c.name,Object.keys(c.data).length,fmtAge(now()-c.created)])])));
+    emit({verb:'get',kind:'configmaps',ns,all}); return;
+  }
+  if (type==='services'){
+    const rows=[]; for (const n of Object.keys(SVCS)) if (all||n===ns) for (const s of SVCS[n]) rows.push([...(all?[n]:[]), s[0],s[1],s[2],s[3],s[4],fmtAge(s[5])]);
+    if (!rows.length){ none(); return; }
+    raw(table(hd([[...(all?['NAMESPACE']:[]),'NAME','TYPE','CLUSTER-IP','EXTERNAL-IP','PORT(S)','AGE'], ...rows]))); return;
+  }
+  if (type==='events'){
+    learn('events');
+    const list = eventsFor(ns, all);
+    if (!list.length){ none(); if (ns==='personality'&&!all) dim('(Events are kept for about an hour. Anything older than that has already been deleted.)'); emit({verb:'get',kind:'events',ns,all}); return; }
+    if (wide) raw(table(hd([[...(all?['NAMESPACE']:[]),'LAST SEEN','TYPE','REASON','OBJECT','SOURCE','MESSAGE','FIRST SEEN','COUNT'], ...list.map(e=>[...(all?[e.ns]:[]),fmtAge(now()-e.t),e.type,e.reason,e.obj,e.src,e.msg,fmtAge(now()-(e.first||e.t)),e.count||1])])));
+    else raw(table(hd([[...(all?['NAMESPACE']:[]),'LAST SEEN','TYPE','REASON','OBJECT','MESSAGE'], ...list.map(e=>[...(all?[e.ns]:[]),fmtAge(now()-e.t),e.type,e.reason,e.obj,e.msg])])));
+    if (list.some(e=>e.obj.startsWith('pod/nuka-promo'))) S.flags.sawPull = true;
+    emit({verb:'get',kind:'events',ns,all}); return;
+  }
+  if (type==='jobs'||type==='cronjobs'){
+    const jp = S.pods.filter(p=>p.job && (all||p.ns===ns));
+    if (!jp.length){ none(); return; }
+    if (type==='jobs') raw(table(hd([[...(all?['NAMESPACE']:[]),'NAME','STATUS','COMPLETIONS','DURATION','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),p.job,'Complete','1/1','4m12s',fmtAge(now()-p.created)])])));
+    else raw(table(hd([[...(all?['NAMESPACE']:[]),'NAME','SCHEDULE','TIMEZONE','SUSPEND','ACTIVE','LAST SCHEDULE','AGE'], ...jp.map(p=>[...(all?[p.ns]:[]),'telemetry-rollup',`${new Date(p.created).getMinutes()} ${new Date(p.created).getHours()} * * *`,'<none>','False','0',fmtAge(now()-p.created),'412d'])])));
+    return;
+  }
+  if (type==='nodes'){
+    raw(table(hd([['NAME','STATUS','ROLES','AGE','VERSION'], ...NODES.map(n=>[n[0],'Ready','<none>','412d','v1.33.4'])]))); return;
+  }
+  if (type==='all'){
+    learn(all?'getpodsA':'getpods');
+    const pods = S.pods.filter(p=>all||p.ns===ns), deps=S.deps.filter(d=>(all||d.ns===ns)&&!d.sts), stss=S.deps.filter(d=>(all||d.ns===ns)&&d.sts);
+    const svcs=[]; for (const n of Object.keys(SVCS)) if (all||n===ns) for (const s of SVCS[n]) svcs.push([n,...s]);
+    if (!pods.length && !deps.length && !svcs.length){ none(); return; }
+    const A = r => all ? r : r.slice(1);
+    const parts=[];
+    if (pods.length) parts.push(table([A(['NAMESPACE','NAME','READY','STATUS','RESTARTS','AGE']), ...pods.map(p=>{ const r=podRow(p,true,false); r[1]='pod/'+r[1]; return A(r); })]));
+    if (svcs.length) parts.push(table([A(['NAMESPACE','NAME','TYPE','CLUSTER-IP','EXTERNAL-IP','PORT(S)','AGE']), ...svcs.map(s=>A([s[0],'service/'+s[1],s[2],s[3],s[4],s[5],fmtAge(s[6])]))]));
+    if (deps.length) parts.push(table([A(['NAMESPACE','NAME','READY','UP-TO-DATE','AVAILABLE','AGE']), ...deps.map(d=>A([d.ns,'deployment.apps/'+d.name,`${depReady(d)}/${d.replicas}`,d.replicas,depReady(d),fmtAge(now()-d.created)]))]));
+    if (stss.length) parts.push(table([A(['NAMESPACE','NAME','READY','AGE']), ...stss.map(d=>A([d.ns,'statefulset.apps/'+d.name,`${depReady(d)}/${d.replicas}`,fmtAge(now()-d.created)]))]));
+    if (deps.length){ const rr=[]; for (const d of deps) for (const r of rsList(d)) rr.push(A([d.ns,'replicaset.apps/'+r.name,r.desired,r.live,r.ready,fmtAge(now()-r.created)])); parts.push(table([A(['NAMESPACE','NAME','DESIRED','CURRENT','READY','AGE']), ...rr])); }
+    raw(parts.join('\n\n'));
+    emit({verb:'get',kind:'all',ns,all}); return;
+  }
+}
+function markCms(list){
+  if (list.some(c=>c.name===S.CM6)) S.flags.sawCm6 = true;
+  if (list.some(c=>c.name===S.CM7)) S.flags.sawCm7 = true;
+}
+function cmYaml(o, ns, names){
+  let list = S.cms.filter(c=>o.all||c.ns===ns);
+  if (names.length){ for (const n of names) if (!list.find(c=>c.name===n)){ err(`Error from server (NotFound): configmaps "${n}" not found`); const w=whereIs(n,'configmaps'); if (w) tip(w); return; } list=list.filter(c=>names.includes(c.name)); }
+  if (!list.length){ raw(`apiVersion: v1\nitems: []\nkind: List\nmetadata:\n  resourceVersion: ""`); return; }
+  learn('describecm');
+  const one = (c, ind) => { const L=[];
+    L.push('apiVersion: v1','data:');
+    for (const k of Object.keys(c.data).sort()) { L.push(`  ${k}: |`); c.data[k].split('\n').forEach(x=>L.push('    '+x)); }
+    L.push('kind: ConfigMap','metadata:',`  creationTimestamp: "${tsUTC(c.created)}"`);
+    if (Object.keys(c.labels).length){ L.push('  labels:'); Object.entries(c.labels).forEach(([k,v])=>L.push(`    ${k}: ${v}`)); }
+    L.push(`  name: ${c.name}`,`  namespace: ${c.ns}`,`  resourceVersion: "${100000+hash(c.name)%900000}"`,`  uid: ${hex(c.name,8)}-${hex(c.name+1,4)}-${hex(c.name+2,4)}-${hex(c.name+3,4)}-${hex(c.name+4,12)}`);
+    return L.map(x=>ind+x).join('\n'); };
+  if (list.length===1) raw(one(list[0],''));
+  else raw(`apiVersion: v1\nitems:\n${list.map(c=>one(c,'  ').replace(/^  /,'- ')).join('\n')}\nkind: List\nmetadata:\n  resourceVersion: ""`);
+  markCms(list);
+  emit({verb:'get',kind:'configmaps',ns,all:o.all,yaml:true});
+}
+
+/* ---------- describe ---------- */
+function describePod(p){
+  const a=APPS[p.dep], d=dep(p.ns,p.dep), v=pv(p), L=[];
+  const kv=(k,val)=>L.push((k+':').padEnd(18)+val);
+  const ck=(k,val)=>L.push('    '+(k+':').padEnd(16)+val);
+  kv('Name',p.name); kv('Namespace',p.ns); kv('Priority','0'); kv('Service Account',a.sa);
+  kv('Node',`${p.node}/${p.nodeIp}`); kv('Start Time',fmtDate(p.created));
+  if (p.sts){ const lb=podLabels(p), ks=Object.keys(lb); kv('Labels',`${ks[0]}=${lb[ks[0]]}`); ks.slice(1).forEach(k=>L.push(' '.repeat(18)+`${k}=${lb[k]}`)); }
+  else if (p.job){ kv('Labels',`job-name=${p.job}`); L.push(' '.repeat(18)+`batch.kubernetes.io/controller-uid=${hex(p.job,8)}-${hex(p.job+'u',4)}`); }
+  else { kv('Labels',`app=${p.dep}`); L.push(' '.repeat(18)+`pod-template-hash=${p.hash}`); }
+  const ann = Object.entries(d?d.ann:{});
+  if (!ann.length) kv('Annotations','<none>'); else ann.forEach(([k,val],i)=> i? L.push(' '.repeat(18)+`${k}: ${val}`) : kv('Annotations',`${k}: ${val}`));
+  kv('Status', p.term ? 'Terminating (lasts 30s)' : (v.kind==='creating'||v.kind==='imagepull'?'Pending':v.kind==='completed'?'Succeeded':'Running'));
+  if (p.term) kv('Termination Grace Period','30s');
+  kv('IP', v.kind==='creating'?'':p.ip); L.push('IPs:'); if (v.kind!=='creating') L.push(`  IP:           ${p.ip}`);
+  kv('Controlled By', p.job ? `Job/${p.job}` : p.sts ? `StatefulSet/${p.dep}` : `ReplicaSet/${p.dep}-${p.hash}`);
+  L.push('Containers:'); L.push(`  ${a.c}:`);
+  ck('Container ID', v.kind==='creating'||v.kind==='imagepull'?'':'containerd://'+hex(p.name+v.restarts,64));
+  ck('Image', a.img);
+  ck('Image ID', v.kind==='creating'||v.kind==='imagepull'?'':a.img.replace(/:[^:/]+$/,'')+'@sha256:'+hex(a.img,64));
+  ck('Port', a.port||'<none>'); ck('Host Port', a.port?'0/'+a.port.split('/')[1]:'<none>');
+  if (v.kind==='creating'){ ck('State','Waiting'); L.push('      Reason:       ContainerCreating'); }
+  else if (v.kind==='imagepull'){ ck('State','Waiting'); L.push(`      Reason:       ${v.status}`); }
+  else if (v.kind==='running'){ ck('State','Running'); L.push(`      Started:      ${fmtDate(v.startedAt)}`); }
+  else if (v.kind==='completed'){ ck('State','Terminated'); L.push('      Reason:       Completed'); L.push('      Exit Code:    0'); L.push(`      Started:      ${fmtDate(v.startedAt)}`); L.push(`      Finished:     ${fmtDate(v.prevEnd)}`); }
+  ck('Ready', v.ready==='1/1'?'True':'False'); ck('Restart Count', String(v.restarts));
+  if (a.res){ L.push('    Limits:'); if(a.res[2]) L.push(`      cpu:     ${a.res[2]}`); if(a.res[3]) L.push(`      memory:  ${a.res[3]}`); if(!a.res[2]&&!a.res[3]) L.push('      <none>'); L.push('    Requests:'); L.push(`      cpu:        ${a.res[0]}`); L.push(`      memory:     ${a.res[1]}`); }
+  const env=Object.entries(a.env||{});
+  if (!env.length) ck('Environment','<none>'); else { L.push('    Environment:'); const w=Math.max(...env.map(e=>e[0].length))+3; env.forEach(([k,val])=>L.push(`      ${(k+':').padEnd(w)}${val}`)); }
+  L.push('    Mounts:');
+  if (a.cmvol) L.push('      /etc/matrix from matrix (ro)');
+  if (a.routing) L.push('      /etc/dispatch from routing (ro)');
+  if (p.sts) L.push('      /var/lib/postgresql/data from data (rw)');
+  L.push(`      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-${hex(p.name,5)} (ro)`);
+  L.push('Conditions:'); const rd = v.ready==='1/1'?'True ':'False ';
+  L.push(table([['Type','Status'],['PodReadyToStartContainers', v.kind==='creating'?'False ':'True '],['Initialized','True '],['Ready',rd],['ContainersReady',rd],['PodScheduled','True ']],'  '));
+  L.push('Volumes:');
+  if (a.cmvol){ L.push('  matrix:'); L.push('    Type:      ConfigMap (a volume populated by a ConfigMap)'); L.push(`    Name:      ${p.cm}`); L.push('    Optional:  false'); }
+  if (a.routing){ L.push('  routing:'); L.push('    Type:      ConfigMap (a volume populated by a ConfigMap)'); L.push('    Name:      dispatch-routing'); L.push('    Optional:  false'); }
+  if (p.sts){ L.push('  data:'); L.push('    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)'); L.push(`    ClaimName:  data-${p.name}`); L.push('    ReadOnly:   false'); }
+  L.push(`  kube-api-access-${hex(p.name,5)}:`); L.push('    Type:                    Projected (a volume that contains injected data from multiple sources)');
+  kv('QoS Class','Burstable'); kv('Node-Selectors','<none>'); kv('Tolerations','node.kubernetes.io/not-ready:NoExecute op=Exists for 300s'); L.push(' '.repeat(18)+'node.kubernetes.io/unreachable:NoExecute op=Exists for 300s');
+  const evs = eventsFor(p.ns,false).filter(e=>e.obj==='pod/'+p.name);
+  if (!evs.length) L.push('Events:            <none>');
+  else { L.push('Events:'); L.push(table([['Type','Reason','Age','From','Message'],['----','------','----','----','-------'], ...evs.map(e=>[e.type,e.reason, e.count>1?`${fmtAge(now()-e.t)} (x${e.count} over ${fmtAge(now()-e.first)})`:fmtAge(now()-e.t), e.src, e.msg])],'  ')); }
+  if (p.pull) S.flags.sawPull = true;
+  return L.join('\n');
+}
+/* The "Pod Template:" block shared by describe deployment, describe rs and rollout history --revision. */
+function tmplLines(d, r, ind=''){
+  const a=APPS[d.name], L=[];
+  L.push('Pod Template:');
+  L.push(`  Labels:       app=${d.name}`); if (r) L.push(`                pod-template-hash=${r.hash}`);
+  if (r && r.cause && r.cause!=='<none>') L.push(`  Annotations:  kubernetes.io/change-cause: ${r.cause}`);
+  L.push(`  Service Account:  ${a.sa}`);
+  L.push('  Containers:'); L.push(`   ${a.c}:`);
+  L.push(`    Image:      ${a.img}`); L.push(`    Port:       ${a.port||'<none>'}`);
+  const env=Object.entries(a.env||{}); if (!env.length) L.push('    Environment:  <none>'); else { L.push('    Environment:'); env.forEach(([k,val])=>L.push(`      ${k}:  ${val}`)); }
+  if (a.cmvol){ L.push('    Mounts:'); L.push('      /etc/matrix from matrix (ro)'); L.push('  Volumes:'); L.push('   matrix:'); L.push('    Type:      ConfigMap (a volume populated by a ConfigMap)'); L.push(`    Name:      ${r?r.cm:d.cm}`); L.push('    Optional:  false'); }
+  else if (a.routing){ L.push('    Mounts:'); L.push('      /etc/dispatch from routing (ro)'); L.push('  Volumes:'); L.push('   routing:'); L.push('    Type:      ConfigMap (a volume populated by a ConfigMap)'); L.push('    Name:      dispatch-routing'); L.push('    Optional:  false'); }
+  else { L.push('    Mounts:       <none>'); L.push('  Volumes:        <none>'); }
+  return L.map(x=>ind+x);
+}
+function describeDep(d){
+  const L=[], kv=(k,val)=>L.push((k+':').padEnd(24)+val), cr=curRev(d);
+  kv('Name',d.name); kv('Namespace',d.ns); kv('CreationTimestamp',fmtDate(d.created)); kv('Labels',`app=${d.name}`);
+  kv('Annotations',`deployment.kubernetes.io/revision: ${cr?cr.rev:1+d.old.length}`);
+  if (cr) L.push(' '.repeat(24)+`kubernetes.io/change-cause: ${cr.cause}`);
+  Object.entries(d.ann).forEach(([k,val])=>L.push(' '.repeat(24)+`${k}: ${val}`));
+  kv('Selector',`app=${d.name}`);
+  const live=depLive(d), rdy=depReady(d);
+  kv('Replicas',`${d.replicas} desired | ${d.replicas} updated | ${live} total | ${rdy} available | ${Math.max(0,live-rdy)} unavailable`);
+  kv('StrategyType','RollingUpdate'); kv('MinReadySeconds','0'); kv('RollingUpdateStrategy','25% max unavailable, 25% max surge');
+  L.push(...tmplLines(d, null));
+  L.push('Conditions:'); L.push(table([['Type','Status','Reason'],['----','------','------'],['Available', rdy>=d.replicas?'True':'False', rdy>=d.replicas?'MinimumReplicasAvailable':'MinimumReplicasUnavailable'],['Progressing','True','NewReplicaSetAvailable']],'  '));
+  const rss = rsList(d), curName = `${d.name}-${d.hash}`;
+  const olds = rss.filter(r=>r.name!==curName);
+  kv('OldReplicaSets', olds.length ? olds.map(r=>`${r.name} (${r.live}/${r.desired} replicas created)`).join(', ') : '<none>');
+  kv('NewReplicaSet',`${curName} (${live}/${d.replicas} replicas created)`);
+  const evs = eventsFor(d.ns,false).filter(e=>e.obj==='deployment/'+d.name);
+  if (!evs.length) L.push('Events:          <none>');
+  else { L.push('Events:'); L.push(table([['Type','Reason','Age','From','Message'],['----','------','----','----','-------'], ...evs.map(e=>[e.type,e.reason,fmtAge(now()-e.t),e.src,e.msg])],'  ')); }
+  return L.join('\n');
+}
+function describeRs(d, r){
+  const L=[], kv=(k,val)=>L.push((k+':').padEnd(16)+val);
+  const h = r.name.slice(d.name.length+1), rv = d.revs ? d.revs.find(x=>x.hash===h) : null;
+  kv('Name',r.name); kv('Namespace',d.ns); kv('Selector',`app=${d.name},pod-template-hash=${h}`);
+  kv('Labels',`app=${d.name}`); L.push(' '.repeat(16)+`pod-template-hash=${h}`);
+  kv('Annotations',`deployment.kubernetes.io/desired-replicas: ${d.replicas}`); L.push(' '.repeat(16)+`deployment.kubernetes.io/max-replicas: ${d.replicas+1}`); L.push(' '.repeat(16)+`deployment.kubernetes.io/revision: ${rv?rv.rev:1}`);
+  if (rv) L.push(' '.repeat(16)+`kubernetes.io/change-cause: ${rv.cause}`);
+  kv('Controlled By',`Deployment/${d.name}`);
+  kv('Replicas',`${r.live} current / ${r.desired} desired`);
+  kv('Pods Status',`${r.ready} Running / ${r.live-r.ready} Waiting / 0 Succeeded / 0 Failed`);
+  L.push(...tmplLines(d, rv || {hash:h, cm:d.cm, cause:'<none>'}));
+  L.push('Events:          <none>');
+  if (rv && d.name==='matrix-server') S.flags.sawRevDetail = true;
+  return L.join('\n');
+}
+function describeCm(c){
+  const L=[`Name:         ${c.name}`,`Namespace:    ${c.ns}`,`Labels:       ${Object.entries(c.labels).map(([k,v])=>`${k}=${v}`).join('\n              ')||'<none>'}`,'Annotations:  <none>','','Data','===='];
+  for (const k of Object.keys(c.data).sort()){ L.push(`${k}:`,'----',c.data[k],''); }
+  L.push('','BinaryData','====','','Events:  <none>');
+  return L.join('\n');
+}
+function describeNs(n){
+  const lbl = {'marketing':'robco.com/team=marketing','personality':'robco.com/team=personality-platform','dispatch':'robco.com/team=fleet-dispatch'}[n.name] || '<none>';
+  return `Name:         ${n.name}\nLabels:       kubernetes.io/metadata.name=${n.name}\n${lbl==='<none>'?'':'              '+lbl+'\n'}Annotations:  <none>\nStatus:       Active\n\nNo resource quota.\n\nNo LimitRange resource.`;
+}
+function cmdDescribe(o, ns){
+  const {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`error: You must specify the type of resource to describe. Use "kubectl api-resources" for a complete list of supported resources.`); return; }
+  if (!type){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (o.ns) nsCheck(ns);
+  const all = o.all;
+  if (type==='pods'){
+    learn('describe');
+    let list = S.pods.filter(p=>all||p.ns===ns);
+    if (o.sel){ if (names.length){ err('error: name cannot be provided when a selector is specified'); return; } list = list.filter(p=>selMatch(p,o.sel)); }
+    if (names.length){
+      const m = list.filter(p=>names.some(n=>p.name.startsWith(n)));
+      if (!m.length){ err(`Error from server (NotFound): pods "${names[0]}" not found`); const w=whereIs(names[0]); if (w) tip(w); return; }
+      list = m;
+    }
+    if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    raw(list.map(describePod).join('\n\n\n'));
+    for (const p of list) emit({verb:'describe',kind:'pods',ns:p.ns,deploy:p.dep,pod:p.name});
+    return;
+  }
+  if (type==='deployments'){
+    learn('describe');
+    let list = S.deps.filter(d=>(all||d.ns===ns) && !d.sts);
+    if (names.length){ const m=list.filter(d=>names.some(n=>d.name.startsWith(n))); if (!m.length){ err(`Error from server (NotFound): deployments.apps "${names[0]}" not found`); const w=whereIs(names[0],'deployments'); if (w) tip(w); return; } list=m; }
+    if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    raw(list.map(describeDep).join('\n\n\n'));
+    for (const d of list) emit({verb:'describe',kind:'deployments',ns:d.ns,deploy:d.name});
+    return;
+  }
+  if (type==='replicasets'){
+    let rows=[]; for (const d of S.deps.filter(d=>(all||d.ns===ns)&&!d.sts)) for (const r of rsList(d)) rows.push({d,r});
+    if (names.length){ rows = rows.filter(x=>names.some(n=>x.r.name.startsWith(n))); if (!rows.length){ err(`Error from server (NotFound): replicasets.apps "${names[0]}" not found`); return; } }
+    if (!rows.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    learn('getrs');
+    raw(rows.map(x=>describeRs(x.d,x.r)).join('\n\n\n'));
+    emit({verb:'describe',kind:'replicasets',ns}); return;
+  }
+  if (type==='configmaps'){
+    let list = S.cms.filter(c=>all||c.ns===ns).sort((a,b)=>a.name.localeCompare(b.name));
+    if (names.length){ const m=list.filter(c=>names.some(n=>c.name.startsWith(n))); if (!m.length){ err(`Error from server (NotFound): configmaps "${names[0]}" not found`); const w=whereIs(names[0],'configmaps'); if (w) tip(w); return; } list=m; }
+    if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    learn('describecm');
+    raw(list.map(describeCm).join('\n\n\n'));
+    markCms(list);
+    emit({verb:'describe',kind:'configmaps',ns,names:list.map(c=>c.name)}); return;
+  }
+  if (type==='namespaces'){
+    let list = S.namespaces; if (names.length){ list=list.filter(n=>names.some(x=>n.name.startsWith(x))); if(!list.length){ err(`Error from server (NotFound): namespaces "${names[0]}" not found`); return; } }
+    raw(list.map(describeNs).join('\n\n\n')); return;
+  }
+  if (type==='nodes'){
+    const list = NODES.filter(n=>!names.length||names.some(x=>n[0].startsWith(x)));
+    if (!list.length){ err(`Error from server (NotFound): nodes "${names[0]}" not found`); return; }
+    raw(list.map(n=>{ const pods=S.pods.filter(p=>p.node===n[0]&&!p.term); return `Name:               ${n[0]}\nRoles:              <none>\nLabels:             kubernetes.io/hostname=${n[0]}\n                    topology.robco.internal/rack=${['cambridge-a','cambridge-b','cambridge-c'][NODES.indexOf(n)]}\nConditions:\n${table([['Type','Status','Reason'],['MemoryPressure','False','KubeletHasSufficientMemory'],['DiskPressure','False','KubeletHasNoDiskPressure'],['PIDPressure','False','KubeletHasSufficientPID'],['Ready','True','KubeletReady']],'  ')}\nAddresses:\n  InternalIP:  ${n[1]}\nCapacity:\n  cpu:     16\n  memory:  64Gi\n  pods:    110\nNon-terminated Pods:  (${pods.length} in total)\n${table([['Namespace','Name'],['---------','----'],...pods.map(p=>[p.ns,p.name])],'  ')}`; }).join('\n\n\n')); return;
+  }
+  if (type==='services'){
+    const list=(SVCS[ns]||[]).filter(s=>!names.length||names.some(x=>s[0].startsWith(x)));
+    if (!list.length){ err(names.length?`Error from server (NotFound): services "${names[0]}" not found`:`No resources found in ${ns} namespace.`); return; }
+    raw(list.map(s=>{ const eps=S.pods.filter(p=>p.ns===ns&&p.dep===s[0]&&pv(p).ready==='1/1').map(p=>`${p.ip}:${s[4].split('/')[0].split(':')[0]}`); return `Name:              ${s[0]}\nNamespace:         ${ns}\nSelector:          app=${s[0]}\nType:              ${s[1]}\nIP:                ${s[2]}\nPort:              <unset>  ${s[4]}\nEndpoints:         ${eps.join(',')||'<none>'}\nEvents:            <none>`; }).join('\n\n\n'));
+    return;
+  }
+  if (type==='statefulsets'){
+    let list = S.deps.filter(d=>(all||d.ns===ns) && d.sts);
+    if (names.length){ const m=list.filter(d=>names.some(n=>d.name.startsWith(n))); if (!m.length){ err(`Error from server (NotFound): statefulsets.apps "${names[0]}" not found`); return; } list=m; }
+    if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    raw(list.map(d=>{ const a=APPS[d.name], live=depLive(d), rdy=depReady(d);
+      return [`Name:               ${d.name}`,`Namespace:          ${d.ns}`,`CreationTimestamp:  ${fmtDate(d.created)}`,`Selector:           app=${d.name}`,`Labels:             app=${d.name}`,`Annotations:        <none>`,
+        `Replicas:           ${d.replicas} desired | ${live} total`,`Update Strategy:    RollingUpdate`,`  Partition:        0`,`Pods Status:        ${rdy} Running / ${live-rdy} Waiting / 0 Succeeded / 0 Failed`,
+        `Pod Template:`,`  Labels:           app=${d.name}`,`  Service Account:  ${a.sa}`,`  Containers:`,`   ${a.c}:`,`    Image:      ${a.img}`,`    Port:       ${a.port}`,`    Mounts:`,`      /var/lib/postgresql/data from data (rw)`,
+        `Volume Claims:`,`  Name:          data`,`  StorageClass:  gp3`,`  Capacity:      500Gi`,`  Access Modes:  [ReadWriteOnce]`,`Events:            <none>`].join('\n'); }).join('\n\n\n'));
+    return;
+  }
+  tip(`describe ${rawType} isn't simulated here. Try pods, deployments, replicasets, configmaps, namespaces, nodes or services.`);
+}
+
+/* ---------- logs ---------- */
+function steady(p, gen, n=14, period=15000){
+  const out=[], start=pv(p).startedAt||p.created;
+  const last = Math.floor(now()/period);
+  for (let i=n-1;i>=0;i--){ const slot=last-i; const t=slot*period + (hash(p.name)%period); if (t<start||t>now()) continue; out.push(gen(prng(hash(p.name+slot)), t)); }
+  return out;
+}
+const GEN = {
+  voice:(r,t)=>`${ts(t)} level=info msg="phrase rendered" voice=${r()<0.9?'protectron-m2':'protectron-promo'} chars=${20+Math.floor(r()*60)} ms=${8+Math.floor(r()*30)}`,
+  geo:(r,t)=>`${ts(t)} level=info msg="resolved" district=${DISTRICTS[Math.floor(r()*DISTRICTS.length)]} grid=boston-metro-v9 ms=${1+Math.floor(r()*6)}`,
+  ingest:(r,t)=>`${ts(t)} level=info msg="batch ingested" units=48 points=${2000+Math.floor(r()*900)} lag_ms=${40+Math.floor(r()*200)}`,
+  pg:(r,t)=>`${ts(t)} LOG:  checkpoint complete: wrote ${100+Math.floor(r()*400)} buffers (${(r()*3).toFixed(1)}%); 0 WAL file(s) added, 0 removed, 1 recycled`,
+  dns:(r,t)=>`[INFO] 10.244.${1+Math.floor(r()*3)}.${Math.floor(r()*250)}:${40000+Math.floor(r()*20000)} - ${Math.floor(r()*65535)} "A IN ${['unit-gateway.dispatch','matrix-server.personality','fleet-db.fleet-telemetry'][Math.floor(r()*3)]}.svc.cluster.local. udp 64 false 512" NOERROR qr,aa,rd 128 0.000${1+Math.floor(r()*9)}s`,
+  prom:(r,t)=>`ts=${ts(t)} level=info component=tsdb msg="Head GC completed" duration=${2+Math.floor(r()*30)}ms`,
+  generic:(r,t)=>`${ts(t)} level=info msg="healthy" uptime_check=ok`,
+};
+const bat = (u,t) => Math.max(21, u.battery - Math.floor((t-S.W0)/HOUR)*3);
+/* Each unit checks in every 15 minutes on its own gateway shard, and logs every matrix reload. */
+function gatewayLines(p){
+  const gi = gwPods().indexOf(p), t1 = now(), L=[];
+  if (gi<0) return [];
+  L.push({t:S.rollAt+30*SEC, s:`level=info msg="matrix broadcast received" matrix=${S.CM7} roles=5 from=matrix-server.personality`});
+  if (S.fixReady) L.push({t:S.fixReady, s:`level=info msg="matrix broadcast received" matrix=${S.CM6} roles=4 from=matrix-server.personality`});
+  for (const u of S.units.filter(u=>u.gw===gi)){
+    for (let t=S.W0+u.phase; t<=t1; t+=15*MIN){ const m=unitPmx(u,t); L.push({t, s:`level=info unit=${u.id} role_id=${u.role} district=${u.district} matrix=${m.cm} pmx=${m.pmx} battery=${bat(u,t)}% msg="check-in"`}); }
+    L.push({t:u.reload, s:`level=info unit=${u.id} role_id=${u.role} msg="matrix reloaded" matrix=${S.CM7} pmx=${IDX7[u.role]} previous=${IDX6[u.role]}`});
+    if (S.fixReady) L.push({t:S.fixReady+u.backOff, s:`level=info unit=${u.id} role_id=${u.role} msg="matrix reloaded" matrix=${S.CM6} pmx=${IDX6[u.role]} previous=${IDX7[u.role]}`});
+  }
+  return L.filter(x=>x.t<=t1 && x.t>=S.W0).sort((a,b)=>a.t-b.t).map(x=>`${ts(x.t)} ${x.s}`);
+}
+function dispatchLines(){
+  const t1 = now(), L=[], q=[0,0,0,0], drained=[false,false,false,false];
+  for (let k=0; ; k++){
+    const c = slotCall(k); if (c.t>t1) break;
+    const fate = callFate(c); if (fate==='skip') continue;
+    if (fate==='assigned'){
+      const pool = S.units.filter(u=>u.role===c.role && inService(u,c.t) && (c.role===0 || c.t<S.rollAt || unitPmx(u,c.t).pmx===IDX6[c.role]));
+      if (!pool.length) continue;
+      const u = pool[Math.floor(c.r()*pool.length)];
+      L.push({t:c.t, s:`level=info call=C-${c.num} type=${c.type} district=${c.district} unit=${u.id} role=${ROLES[c.role]} result=assigned eta=${2+Math.floor(c.r()*9)}m`});
+    } else {
+      q[c.role]++;
+      L.push({t:c.t, s:`level=warn call=C-${c.num} type=${c.type} district=${c.district} role=${ROLES[c.role]} result=unassigned reason="no in-service unit for role=${ROLES[c.role]}" queue=${q[c.role]}`});
+    }
+  }
+  for (const u of S.units){
+    if (!u.dec) continue;
+    for (const d of u.dec) L.push({t:d.t, s:`level=warn call=C-${d.num} type=${d.type} district=${u.district} unit=${u.id} role=${ROLES[u.role]} result=declined reason="task outside personality scope" pmx=${IDX7[u.role]} said="${d.said}"`});
+    L.push({t:u.q, s:`level=warn unit=${u.id} role=${ROLES[u.role]} msg="unit quarantined after 3 declined calls" in_service=false`});
+    if (S.fixReady) L.push({t:S.fixReady+u.backOff+400, s:`level=info unit=${u.id} role=${ROLES[u.role]} msg="unit returned to service: personality matches role" pmx=${IDX6[u.role]} in_service=true`});
+  }
+  if (S.fixReady) for (let r=1;r<4;r++){ const tb=roleBack(r)+900; if (!drained[r]){ drained[r]=true; L.push({t:tb, s:`level=info role=${ROLES[r]} msg="assigning queued calls" queued=${q[r]}`}); } }
+  return L.filter(x=>x.t<=t1 && x.t>=S.W0).sort((a,b)=>a.t-b.t).map(x=>`${ts(x.t)} ${x.s}`);
+}
+function matrixLines(p){
+  const v=pv(p), st=v.startedAt, idx = p.cm===S.CM7 ? IDX7 : IDX6, L=[];
+  L.push({t:st, s:`level=info msg="matrix-server 4.7.2 starting" pid=1`});
+  L.push({t:st+300, s:`level=info msg="loading roles index" path=/etc/matrix/roles.idx matrix=${p.cm}`});
+  idx.forEach((f,i)=>L.push({t:st+400+i, s:`level=info msg="role mapped" role_id=${i} pmx=${f} scope="${SCOPE[f]}"`}));
+  if (idx.length===5) L.push({t:st+600, s:`level=warn msg="role has no units assigned" role_id=4 pmx=construction.pmx`});
+  L.push({t:st+800, s:`level=info msg="listening" addr=:7077`});
+  const bt = p.cm===S.CM7 ? S.rollAt+30*SEC : S.fixReady!=null ? Math.max(S.fixReady, st+1000) : null;
+  if (bt) L.push({t:bt, s:`level=info msg="broadcast matrix" matrix=${p.cm} target=unit-gateway.dispatch:7077 units=48`});
+  const res = L.filter(x=>x.t<=now()).map(x=>`${ts(x.t)} ${x.s}`);
+  return res.concat(steady(p,(r,t)=>`${ts(t)} level=info msg="matrix sync" matrix=${p.cm} roles=${idx.length} units=48 in_service=${unitsUp(t)}`,10,60000));
+}
+function logLines(p, prev){
+  const v=pv(p), a=APPS[p.dep];
+  if (p.completed){ const st=p.completed.start, en=p.completed.end;
+    return [`${ts(st)} level=info msg="telemetry-rollup starting" window=24h`,`${ts(st+900)} level=info msg="reading fleet-db" units=48`,`${ts(st+120000)} level=info msg="rolled up" rows=1382400`,`${ts(en-100)} level=info msg="done" duration=4m12s exit=0`]; }
+  if (p.dep==='dispatch-router') return dispatchLines();
+  if (p.dep==='unit-gateway') return gatewayLines(p);
+  if (p.dep==='matrix-server') return matrixLines(p);
+  return steady(p, GEN[a.log]||GEN.generic);
+}
+function cmdLogs(o, ns){
+  let t=o.pos[1], name=o.pos[2];
+  let pods=[];
+  if (o.sel){
+    if (t){ err('error: only one of a TYPE/NAME or a label selector (-l) can be used'); return; }
+    if (o.ns) nsCheck(ns);
+    pods = S.pods.filter(x=>x.ns===ns && !x.term && selMatch(x,o.sel)).sort((a,b)=>a.name.localeCompare(b.name));
+    if (!pods.length){ raw(`No resources found in ${ns} namespace.`); return; }
+    if (pods.length>5){ err(`error: you are attempting to follow ${pods.length} log streams, but maximum allowed concurrency is 5, use --max-log-requests to increase the limit`); return; }
+    learn('logsl');
+  } else {
+    if (!t){ err(`error: expected 'logs [-f] [-p] (POD | TYPE/NAME) [-c CONTAINER]'.\nPOD or TYPE/NAME is a required argument for the logs command\nSee 'kubectl logs -h' for help and examples`); return; }
+    let p;
+    if (t.includes('/')){
+      const [ty, n] = t.split('/'); const k = RT[ty];
+      if (k==='pods') name=n;
+      else if (k==='deployments'||k==='statefulsets'){ const d=k==='statefulsets'?stsOf(ns,n):dep(ns,n); if (!d){ err(`error: ${k}.apps "${n}" not found`); const w=whereIs(n,'deployments'); if (w) tip(w); return; }
+        const live = S.pods.filter(x=>x.ns===ns&&x.dep===n&&!x.term).sort((a,b)=>b.created-a.created);
+        p = live[0];
+        if (!p){ err(`error: timed out waiting for the condition`); tip(`${n} has no running pods (it is scaled to ${d.replicas}).`); return; }
+        if (live.length>1) dim(`Found ${live.length} pods, using pod/${p.name}`);
+      } else { err(`error: cannot get logs from ${ty}`); return; }
+    } else if ((t==='pod'||t==='pods') && name){ /* lenient */ } else { name=t; }
+    if (!p){
+      if (o.ns) nsCheck(ns);
+      p = S.pods.find(x=>x.ns===ns&&x.name===name);
+      if (!p){ err(`Error from server (NotFound): pods "${name}" not found`); const w=whereIs(name); if (w) tip(w); return; }
+    }
+    pods=[p];
+  }
+  let since=null;
+  if (o.since!=null){ since=parseDur(o.since); if (since==null||/[d]/.test(o.since)){ err(`error: invalid argument "${o.since}" for "--since" flag: use a duration like 30s, 10m or 1h`); return; } learn('logs'); }
+  let tailN = o.tail!=null ? parseInt(o.tail,10) : (o.sel ? 10 : -1);
+  if (isNaN(tailN)){ err(`error: invalid argument "${o.tail}" for "--tail" flag`); return; }
+  const outL=[];
+  let total=0;
+  for (const p of pods){
+    const a=APPS[p.dep], v=pv(p);
+    if (o.container && o.container!==a.c){ err(`error: container ${o.container} is not valid for pod ${p.name}`); return; }
+    if (v.kind==='creating'){ err(`Error from server (BadRequest): container "${a.c}" in pod "${p.name}" is waiting to start: ContainerCreating`); if (pods.length===1) return; continue; }
+    if (v.kind==='imagepull'){ err(`Error from server (BadRequest): container "${a.c}" in pod "${p.name}" is waiting to start: trying and failing to pull image`); S.flags.sawPull=true; if (pods.length===1) return; continue; }
+    if (o.prev){ err(`Error from server (BadRequest): previous terminated container "${a.c}" in pod "${p.name}" not found`); tip('--previous only works when a container has restarted at least once (RESTARTS > 0). Nothing has crashed tonight.'); return; }
+    let lines = logLines(p, false);
+    if (since!=null) lines = lines.filter(l=>{ const m=l.match(TSRE); return !m || tsMs(m) >= now()-since; });
+    if (o.timestamps) lines = lines.map(l=>{ const m=l.match(TSRE); return (m? m[0].slice(0, m[0].length-m[8].length)+'.'+hex(l,9).replace(/[a-f]/g,'4')+m[8] : ts(now())) + ' ' + l; });
+    total += lines.length;
+    if (tailN>=0) lines = lines.slice(-tailN);
+    if (o.prefix) lines = lines.map(l=>`[pod/${p.name}/${a.c}] ${l}`);
+    outL.push(...lines);
+  }
+  if (o.tail!=null) learn('tail');
+  raw(outL.join('\n'));
+  if (o.follow) dim('(-f would keep streaming new lines until you press Ctrl+C. Not simulated here.)');
+  learn('logs');
+  const p0 = pods[0];
+  emit({verb:'logs',ns:p0.ns,deploy:p0.dep,pod:p0.name,pods:pods.map(p=>p.name),sel:!!o.sel,prefix:o.prefix,tailDefault:!!o.sel&&o.tail==null,out:outL,total});
+}
+
+/* ---------- scale / delete / rollout ---------- */
+function protectedNs(ns){
+  if (ns==='kube-system'||ns==='monitoring'){ tip(`Hands off: ${ns} belongs to the platform team. Changing it during someone else's incident is how one bad night becomes two. (Blocked in this sim.)`); return true; }
+  return false;
+}
+/* Stops changes that would destroy evidence, touch something healthy, or make tonight worse.
+   Each block is phrased as the real-world reason. */
+function guard(depName, ns, verb){
+  const cur = CH[S.chapter] ? CH[S.chapter].t : 'shift over';
+  const before = id => !S.done && S.chapter < chIdx(id);
+  if (S.deps.some(x=>x.ns===ns && x.name===depName && x.sts)){
+    tip(`${depName} is a StatefulSet holding every unit's service record. Its pod keeps the same name (${depName}-0) and the same disk every time it restarts. Restarting a database during somebody else's incident is how you get a second incident. Looking is fine: kubectl describe sts ${depName} -n ${ns}. (Blocked in this sim.)`); return true; }
+  if (depName==='dispatch-router'){
+    tip(`dispatch-router holds the live call queue (${callsWaiting()} calls waiting) and it is the only thing still sending police units out. It also keeps its quarantine list in memory: restart it and 28 robots with the wrong personality go straight back to taking calls. (Blocked in this sim.)`); return true; }
+  if (depName==='unit-gateway'){
+    tip(`Every Protectron in the city holds a connection to one of these three pods. Restarting them makes 48 robots reconnect at once and throws away the check-in logs you are reading. It isn't broken: it is faithfully delivering whatever matrix-server sends. (Blocked in this sim.)`); return true; }
+  if (['voice-synth','geo-lookup','telemetry-ingest'].includes(depName)){
+    tip(`${depName} is healthy and has nothing to do with tonight. Restarting a healthy app can cause a new outage, and it throws away its logs. Only change what you have a reason to change. (Blocked in this sim.)`); return true; }
+  if (depName==='nuka-promo'){
+    tip(`That is marketing's, not yours. It has never started, so it isn't hurting anything, and its pod and events are the evidence for their ticket ("image tag doesn't exist"). Note it in the handover and let them fix it. (Blocked in this sim.)`); return true; }
+  if (depName==='telemetry-rollup'){
+    tip(`That pod belongs to a finished scheduled job. It isn't hurting anything, and its logs are the record of last night's rollup. (Blocked in this sim.)`); return true; }
+  if (depName==='matrix-server'){
+    if (verb==='scale'){ tip(`Scaling matrix-server doesn't change what the units have already loaded. At 0 they keep their wrong personalities and nothing can send them a fix. At 5 you have more copies of the same wrong matrix. To change what it serves you need a different revision. (Blocked in this sim.)`); return true; }
+    if (before('undo')){ tip(`A restart re-reads the same ConfigMap: revision 7's pod template still mounts ${S.CM7}. The fleet would reload the same wrong personalities, and you would lose these pods' startup logs. To change what it serves, you need a different revision. (Current task: ${cur})`); return true; }
+  }
+  return false;
+}
+function cmdScale(o, ns){
+  if (o.replicas==null){ err(`error: required flag(s) "replicas" not set`); tip('Tell scale how many pods you want, e.g. --replicas=0'); return; }
+  let {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  if (type==='pods'){ err(`error: the server could not find the requested resource`); tip('Pods cannot be scaled on their own. Scale the Deployment that owns them (kubectl get deployments -n <ns>).'); return; }
+  if (type!=='deployments' && type!=='replicasets' && type!=='statefulsets'){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (!names.length){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  const r = Number(o.replicas);
+  if (!Number.isInteger(r) || r<0){ err(`error: The --replicas=COUNT flag is required, and COUNT must be greater than or equal to 0`); return; }
+  if (o.ns) nsCheck(ns);
+  if (protectedNs(ns)) return;
+  if (type==='replicasets'){ tip('Scaling a ReplicaSet that a Deployment owns does nothing useful: the Deployment puts it straight back. Work with the Deployment.'); return; }
+  if (type==='statefulsets'){ const sd=stsOf(ns,names[0]); if (!sd){ err(`Error from server (NotFound): statefulsets.apps "${names[0]}" not found`); return; } guard(sd.name, ns, 'scale'); return; }
+  const d = dep(ns, names[0]);
+  if (!d){ err(`Error from server (NotFound): deployments.apps "${names[0]}" not found`); const w=whereIs(names[0],'deployments'); if (w) tip(w); return; }
+  if (guard(d.name, ns, 'scale')) return;
+  if (r>5){ tip('This sim caps replicas at 5.'); return; }
+  const old=d.replicas; d.replicas=r;
+  if (old!==r) ev(ns,'Normal','ScalingReplicaSet',`deployment/${d.name}`,`Scaled ${r>old?'up':'down'} replica set ${d.name}-${d.hash} from ${old} to ${r}`,'deployment-controller');
+  reconcile();
+  raw(`deployment.apps/${d.name} scaled`);
+  emit({verb:'scale',ns,deploy:d.name,replicas:r});
+}
+function cmdDelete(o, ns){
+  const {type, rawType, names} = splitTypeName(o);
+  if (!rawType){ err(`error: You must provide one or more resources by argument or filename.`); return; }
+  if (!type){ err(`error: the server doesn't have a resource type "${rawType}"`); return; }
+  if (type==='configmaps'){ tip(`Don't. The old matrices are your rollback targets, and revision 7's is the evidence the Personality team needs to see. A ConfigMap that a pod template mounts can't be recreated from memory mid-incident. (Blocked in this sim.)`); return; }
+  if (type!=='pods'){ tip(`Deleting ${type} is disabled in this sim, and at work it's usually a job for the escalation team. It destroys config and evidence.`); return; }
+  if (o.allFlag){ tip('Deleting every pod at once is a great way to cause an outage. Blocked in this sim.'); return; }
+  if (!names.length){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  if (o.ns) nsCheck(ns);
+  if (protectedNs(ns)) return;
+  const targets=[];
+  for (const n of names){ const p=S.pods.find(x=>x.ns===ns&&x.name===n); if (!p){ err(`Error from server (NotFound): pods "${n}" not found`); const w=whereIs(n); if (w) tip(w); return; } targets.push(p); }
+  for (const p of targets) if (guard(p.dep, ns, 'delete')) return;
+  for (const p of targets){ terminate(p); raw(`pod "${p.name}" deleted from ${ns} namespace`); }
+  reconcile();
+  for (const p of targets) emit({verb:'delete',ns:p.ns,deploy:p.dep,pod:p.name});
+}
+function revHistory(d, n){
+  if (!d.revs) return `deployment.apps/${n} \nREVISION  CHANGE-CAUSE\n1         <none>`;
+  return `deployment.apps/${n} \n${table([['REVISION','CHANGE-CAUSE'], ...d.revs.map(r=>[r.rev,r.cause])])}`;
+}
+let BLOCK = null;   /* a command that holds the prompt until it finishes (rollout status) */
+function rolloutMsg(d){
+  const cur = S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&p.hash===d.hash&&!p.term);
+  const rdy = cur.filter(p=>pv(p).ready==='1/1').length;
+  const old = S.pods.filter(p=>p.ns===d.ns&&p.dep===d.name&&(p.hash!==d.hash||p.term)).length;
+  if (rdy < d.replicas) return {done:false, msg:`Waiting for deployment "${d.name}" rollout to finish: ${rdy} of ${d.replicas} updated replicas are available...`};
+  if (old) return {done:false, msg:`Waiting for deployment "${d.name}" rollout to finish: ${old} old replicas are pending termination...`};
+  return {done:true, msg:`deployment "${d.name}" successfully rolled out`};
+}
+function cmdRollout(o, ns){
+  const sub=o.pos[1]; let t=o.pos[2], n=o.pos[3];
+  if (!sub || !['restart','status','history','undo','pause','resume'].includes(sub)){ err(`error: unknown command "${sub||''}" for "kubectl rollout"\nAvailable: history, undo, status, restart`); return; }
+  if (t && t.includes('/')){ [t,n]=t.split('/'); }
+  if (!t || (RT[t]!=='deployments' && RT[t]!=='statefulsets')){ err(`error: you must specify a deployment, e.g. kubectl rollout ${sub} deployment/<name>`); return; }
+  if (!n){ err(`error: resource(s) were provided, but no name was specified`); return; }
+  if (o.ns) nsCheck(ns);
+  const d = RT[t]==='statefulsets' ? stsOf(ns,n) : dep(ns,n);
+  if (d && d.sts && sub!=='status' && sub!=='history'){ guard(n, ns, 'rollout'); return; }
+  if (!d){ err(`Error from server (NotFound): ${RT[t]}.apps "${n}" not found`); const w=whereIs(n,'deployments'); if (w) tip(w); return; }
+  if (sub==='history'){
+    learn('history');
+    if (o.revision!=null){
+      const rv = Number(o.revision), r = d.revs ? d.revs.find(x=>x.rev===rv) : (rv===1 ? {rev:1,hash:d.hash,cm:d.cm,cause:'<none>'} : null);
+      if (!r){ err(`error: unable to find the specified revision`); if (d.revs) tip(`${n} has revisions ${d.revs.map(x=>x.rev).join(', ')}.`); return; }
+      learn('revision');
+      raw([`deployment.apps/${n} with revision #${rv}`, ...tmplLines(d, r)].join('\n'));
+      if (d.name==='matrix-server'){ S.flags.sawRevDetail = true; S.flags['sawRev'+rv] = true; }
+    } else raw(revHistory(d, n));
+    emit({verb:'rollout',sub:'history',ns,deploy:n,revision:o.revision});
+    return;
+  }
+  if (sub==='status'){
+    learn('status');
+    const m = rolloutMsg(d);
+    if (m.done || CAP){ raw(m.msg); emit({verb:'rollout',sub:'status',ns,deploy:n,success:m.done}); return; }
+    /* Real rollout status blocks until the rollout is done, printing each change. */
+    let last = m.msg; raw(last);
+    inp.placeholder = 'waiting for rollout… Ctrl+C to stop waiting'; $('#inrow').classList.add('watching');
+    BLOCK = {timer:setInterval(()=>{
+      const r = rolloutMsg(d);
+      if (r.msg!==last){ raw(r.msg); last=r.msg; }
+      if (r.done){ endBlock(); emit({verb:'rollout',sub:'status',ns,deploy:n,success:true}); renderSide(); }
+    }, 400)};
+    return;
+  }
+  if (sub==='pause'||sub==='resume'){ tip(`rollout ${sub} isn't part of this case.`); return; }
+  if (protectedNs(ns)) return;
+  if (sub==='undo'){
+    if (!d.revs){ if (guard(n, ns, 'rollout')) return; tip(`${n} has only ever had one revision. There's nothing to roll back to, and nothing about it changed tonight.`); return; }
+    if (!S.done && S.chapter < chIdx('undo')){ tip(`Hold on. You don't know yet what revision 6 contains, or whether it's any better. In a real incident, rolling back early is often the right call, but only to a revision you have reason to trust. Finish checking first. (Current task: ${CH[S.chapter].t})`); return; }
+    if (S.fixAt!=null && o.toRev==null){ tip(`Already rolled back. Another plain undo goes back one revision from here, which is revision 7: it would put the Nuka index straight back. (Undo flips between the last two.)`); return; }
+    const cur = curRev(d), prevRev = d.revs[d.revs.length-2];
+    const to = o.toRev!=null ? Number(o.toRev) : prevRev.rev;
+    const target = d.revs.find(r=>r.rev===to);
+    if (!target){ err(`error: unable to find specified revision ${o.toRev} in history`); return; }
+    if (target===cur){ raw(`deployment.apps/${n} skipped rollback (current template already matches revision ${to})`); return; }
+    if (target.cm===S.CM7){ tip(`Revision ${to} mounts ${S.CM7}, the matrix with nuka.pmx inserted. That's the one you're rolling away from. (Blocked in this sim.)`); return; }
+    if (target.cm===S.CM5){ tip(`Revision 5 has the old index too, but it predates RCO-4420 (medic triage phrases v2). You'd undo two changes to fix one, and medics would lose their new triage script. Roll back one step: kubectl rollout undo deployment/${n} -n ${ns}  (or --to-revision=6). (Blocked in this sim.)`); return; }
+    const maxRev = Math.max(...d.revs.map(r=>r.rev));
+    const oldHash = d.hash;
+    d.revs = d.revs.filter(r=>r!==target); d.revs.push(Object.assign({}, target, {rev:maxRev+1}));
+    d.hash = target.hash; d.cm = target.cm;
+    S.pods.filter(p=>p.ns===ns&&p.dep===n&&!p.term).forEach(terminate);
+    ev(ns,'Normal','ScalingReplicaSet',`deployment/${n}`,`Scaled up replica set ${n}-${d.hash} from 0 to ${d.replicas}`,'deployment-controller');
+    ev(ns,'Normal','ScalingReplicaSet',`deployment/${n}`,`Scaled down replica set ${n}-${oldHash} from ${d.replicas} to 0`,'deployment-controller', 600);
+    reconcile();
+    raw(`deployment.apps/${n} rolled back`);
+    learn('undo');
+    S.fixAt = now(); S.fixReady = now() + 4000;
+    emit({verb:'rollout',sub:'undo',ns,deploy:n,to:d.cm});
+    return;
+  }
+  /* restart */
+  if (guard(n, ns, 'rollout')) return;
+  const nh = hex(n+now(),10).replace(/[aeiou01]/g,'7').slice(0,10);
+  if (d.revs){ const cr=curRev(d); d.revs.push({rev:Math.max(...d.revs.map(r=>r.rev))+1, hash:nh, cm:d.cm, cause:cr.cause, created:now()}); }
+  else d.old.push(d.hash);
+  d.hash = nh;
+  S.pods.filter(p=>p.ns===ns&&p.dep===n&&!p.term).forEach(terminate);
+  ev(ns,'Normal','ScalingReplicaSet',`deployment/${n}`,`Scaled up replica set ${n}-${d.hash} from 0 to ${d.replicas}`,'deployment-controller');
+  reconcile();
+  raw(`deployment.apps/${n} restarted`);
+  emit({verb:'rollout',sub:'restart',ns,deploy:n});
+}
+function endBlock(){
+  if (!BLOCK) return;
+  clearInterval(BLOCK.timer); BLOCK = null;
+  inp.placeholder = ''; $('#inrow').classList.remove('watching');
+}
+
+/* ---------- config / top ---------- */
+function cmdConfig(o){
+  const sub=o.pos[1];
+  if (sub==='set-context'){
+    if (!o.current && o.pos[2]!==CTX){ err(`error: you must specify a context name or --current`); return; }
+    if (!o.ns){ raw(`Context "${CTX}" modified.`); return; }
+    S.ns=o.ns; raw(`Context "${CTX}" modified.`); nsCheck(o.ns); learn('setns'); renderSide();
+    dim(`(Commands without -n now use the "${o.ns}" namespace.)`);
+    return;
+  }
+  if (sub==='get-contexts'){ raw(table([['CURRENT','NAME','CLUSTER','AUTHINFO','NAMESPACE'],['*',CTX,CTX,'fleetops',S.ns],['','robco-staging','robco-staging','fleetops','default']])); return; }
+  if (sub==='current-context'){ raw(CTX); return; }
+  if (sub==='view'){ raw(`apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: DATA+OMITTED\n    server: https://api.robco-boston.internal:6443\n  name: ${CTX}\ncontexts:\n- context:\n    cluster: ${CTX}\n    namespace: ${S.ns}\n    user: fleetops\n  name: ${CTX}\ncurrent-context: ${CTX}\nkind: Config\nusers:\n- name: fleetops\n  user:\n    token: REDACTED`); return; }
+  if (sub==='use-context'){ tip('Staging is not where the robots are. Stay on robco-boston.'); return; }
+  err(`error: unknown command "${sub||''}" for "kubectl config"\nAvailable: set-context, get-contexts, current-context, view`);
+}
+function cmdTop(o, ns){
+  const sub=o.pos[1];
+  if (sub==='nodes'||sub==='node'||sub==='no'){
+    raw(table([['NAME','CPU(cores)','CPU(%)','MEMORY(bytes)','MEMORY(%)'], ...NODES.map((n,i)=>[n[0],`${1400+i*310}m`,`${9+i*2}%`,`${14100+i*1700}Mi`,`${22+i*3}%`])])); return;
+  }
+  if (sub!=='pods'&&sub!=='pod'&&sub!=='po'){ err(`error: unknown command "${sub||''}" for "kubectl top"\nAvailable: pods, nodes`); return; }
+  const list=S.pods.filter(p=>(o.all||p.ns===ns) && !['creating','completed','imagepull'].includes(pv(p).kind) && !p.term);
+  if (!list.length){ raw(`No resources found in ${ns} namespace.`); return; }
+  learn('top');
+  raw(table([[...(o.all?['NAMESPACE']:[]),'NAME','CPU(cores)','MEMORY(bytes)'], ...list.map(p=>{ const r=prng(hash(p.name)); const big=p.dep==='fleet-db'||p.dep==='prometheus-server';
+    return [...(o.all?[p.ns]:[]),p.name, big?`${300+Math.floor(r()*280)}m`:`${2+Math.floor(r()*90)}m`, big?`${1400+Math.floor(r()*900)}Mi`:`${24+Math.floor(r()*200)}Mi`]; })]));
+  if (o.all || ns==='personality' || ns==='dispatch') dim('(Nothing is short of CPU or memory tonight. Resource graphs look fine when the problem is configuration.)');
+  emit({verb:'top',kind:'pods',ns,all:o.all});
+}
+
+/* ---------- game commands ---------- */
+function gameHelp(){
+  raw(`Game commands:
+  hint              a nudge for the current task (ask again for a bigger nudge)
+  mission           show the current task
+  status            fleet board: units in service by role, calls waiting
+  notes             your incident notes (also: clues)
+  answer <text>     answer a task question (e.g. answer 45m, answer no, answer 12)
+  codes             how to read pod status (Running, ImagePullBackOff, …)
+  handover          file the incident (last task)
+  results           your report card: commands run, hints used, the lot
+  history           commands you've typed
+  clear             clear the screen (or Ctrl+L)
+  restart           start a new shift
+
+Everything else starts with kubectl (or its common alias, k).
+Pipes:  kubectl ... | grep -i <text> | sort | uniq -c    (also grep -v -c -A -B -C -n -w -o,
+        awk '{print $n}', cut, head, tail, wc -l)
+Also:   watch -n 1 kubectl get pods -n <ns>             live view (Ctrl+C or Enter stops it)
+Try: kubectl help`);
+}
+function fleetStatus(){
+  const t=now(), rows = ROLES.map((r,i)=>{ const us=S.units.filter(u=>u.role===i); const up=us.filter(u=>inService(u,t)).length; return `    ${r.padEnd(14)}${String(up).padStart(2)} / ${us.length}${up<us.length?'   '+(up===0?'NONE IN SERVICE':'recovering'):''}`; });
+  raw(`ROBCO FLEET OPERATIONS · BOSTON METRO CONTRACT
+  Local time        ${clock(t)}  (${fmtShort(t).slice(0,10)} 2077)
+  Units in service  ${unitsUp(t)} / ${S.units.length}
+${rows.join('\n')}
+  Calls waiting     ${callsWaiting()}
+  Cluster           ${S.pods.filter(p=>pv(p).kind==='running').length} of ${S.pods.length} pods Running`);
+}
+/* ---------- pipes ( | grep, | sort -u … ) and watch ---------- */
+let CAP = null, EMITQ = null, WATCH = null;
+function splitPipes(str){
+  const segs=[]; let cur='', q=null;
+  for (const ch of str){
+    if (q){ if (ch===q) q=null; cur+=ch; continue; }
+    if (ch==='"'||ch==="'"){ q=ch; cur+=ch; continue; }
+    if (ch==='|'){ segs.push(cur); cur=''; continue; }
+    cur+=ch;
+  }
+  segs.push(cur);
+  return segs;
+}
+function capture(fn){
+  CAP=[]; EMITQ=[];
+  let c, q;
+  try { fn(); } finally { c=CAP; q=EMITQ; CAP=null; EMITQ=null; }
+  return { stdout: c.filter(b=>b.cls==='raw').map(b=>b.text).join('\n'), other: c.filter(b=>b.cls!=='raw'), q };
+}
+function dispatchTop(tk){
+  if (tk[0]==='kubectl'||tk[0]==='k') kubectl(tk.slice(1));
+  else if (GAME.includes(tk[0])) err(`${tk[0]} is a game command, and game commands can't be piped.`);
+  else err(`bash: ${tk[0]}: command not found`);
+}
+const reEsc = x => x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+/* grep's default (basic) regex: | ( ) + ? { } are literal unless backslashed. */
+function bre(p){ let o=''; for (let k=0;k<p.length;k++){ const ch=p[k]; if (ch==='\\' && k+1<p.length){ const nx=p[k+1]; if ('|()+?{}'.includes(nx)){ o+=nx; k++; continue; } o+=ch+nx; k++; continue; } o += '|()+?{}'.includes(ch) ? '\\'+ch : ch; } return o; }
+function grepF(lines, cmd, args){
+  let i=false,v=false,c=false,n=false,w=false,o=false,E=cmd==='egrep',F=cmd==='fgrep',A=0,B=0,m=Infinity,pat=null;
+  for (let k=0;k<args.length;k++){
+    const a=args[k]; let mm;
+    if (a.startsWith('--color')||a==='--colour') continue;
+    if (a==='--ignore-case'){ i=true; continue; } if (a==='--invert-match'){ v=true; continue; } if (a==='--count'){ c=true; continue; }
+    if (a==='--line-number'){ n=true; continue; } if (a==='--word-regexp'){ w=true; continue; } if (a==='--only-matching'){ o=true; continue; }
+    if (a==='--extended-regexp'){ E=true; continue; } if (a==='--fixed-strings'){ F=true; continue; }
+    if ((mm=a.match(/^--(after|before)-context=(\d+)$/))){ if (mm[1]==='after') A=+mm[2]; else B=+mm[2]; continue; }
+    if ((mm=a.match(/^--context=(\d+)$/))){ A=B=+mm[1]; continue; }
+    if ((mm=a.match(/^--max-count=(\d+)$/))){ m=+mm[1]; continue; }
+    if ((mm=a.match(/^-([ivcEFnwoHhs]*)([ABCm])(\d*)$/))){
+      for (const ch of mm[1]){ if(ch==='i')i=true; if(ch==='v')v=true; if(ch==='c')c=true; if(ch==='E')E=true; if(ch==='F')F=true; if(ch==='n')n=true; if(ch==='w')w=true; if(ch==='o')o=true; }
+      let val=mm[3]; if (val===''){ val=args[++k]; if (val===undefined) return {error:`grep: option requires an argument -- '${mm[2]}'\nUsage: grep [OPTION]... PATTERNS [FILE]...`}; if (!/^\d+$/.test(val)) return {error:`grep: ${val}: invalid ${mm[2]==='m'?'max count':'context length argument'}`}; }
+      const x=+val; if (mm[2]==='A') A=x; else if (mm[2]==='B') B=x; else if (mm[2]==='C') A=B=x; else m=x; continue; }
+    if (a==='-e'){ pat=args[++k]; if (pat===undefined) return {error:"grep: option requires an argument -- 'e'"}; continue; }
+    if (/^-[ivcEFnwoHhs]+$/.test(a)){ for (const ch of a.slice(1)){ if(ch==='i')i=true; if(ch==='v')v=true; if(ch==='c')c=true; if(ch==='E')E=true; if(ch==='F')F=true; if(ch==='n')n=true; if(ch==='w')w=true; if(ch==='o')o=true; } continue; }
+    if (a.startsWith('-') && a.length>1 && pat===null) return {error:`grep: invalid option -- '${a.replace(/^-+/,'')[0]}'\nUsage: grep [OPTION]... PATTERNS [FILE]...`};
+    if (pat===null) pat=a; else return {error:`grep: ${a}: No such file or directory`};
+  }
+  if (pat===null) return {error:"Usage: grep [OPTION]... PATTERNS [FILE]...\nTry 'grep --help' for more information."};
+  let src = F ? reEsc(pat) : E ? pat : bre(pat);
+  if (w) src = `(?<![\\w])(?:${src})(?![\\w])`;
+  let re; try { re = new RegExp(src, i?'i':''); } catch(_) { re = new RegExp(reEsc(pat), i?'i':''); }
+  const info = {pat, v, c, ctx:A>0||B>0};
+  const hits=[]; for (let k=0;k<lines.length && hits.length<m;k++) if (re.test(lines[k])!==v) hits.push(k);
+  if (c) return {lines:[String(hits.length)], grep:info};
+  const pre = (k,sep) => n ? `${k+1}${sep}` : '';
+  if (o && !v){ const g=new RegExp(re.source, re.flags+'g'), L=[]; for (const k of hits) for (const mt of lines[k].matchAll(g)) if (mt[0]) L.push(pre(k,':')+mt[0]); return {lines:L, grep:info}; }
+  if (!A && !B) return {lines:hits.map(k=>pre(k,':')+lines[k]), grep:info};
+  const hitSet=new Set(hits), L=[]; let last=-2;
+  for (const k of hits){ const s=Math.max(0,k-B), e=Math.min(lines.length-1,k+A); for (let j=s;j<=e;j++){ if (j<=last) continue; if (last>=0 && j>last+1) L.push('--'); L.push(pre(j, hitSet.has(j)?':':'-')+lines[j]); last=j; } }
+  return {lines:L, grep:info};
+}
+function awkF(lines, args){
+  let sep=null, prog=null;
+  for (let k=0;k<args.length;k++){ const a=args[k]; if (a==='-F'){ sep=args[++k]; continue; } if (a.startsWith('-F')){ sep=a.slice(2); continue; } if (prog===null) prog=a; else return {error:`awk: cannot open "${a}" (No such file or directory)`}; }
+  if (prog===null) return {error:"usage: awk [-F fs] 'program'"};
+  const m = prog.match(/^\s*(?:\/((?:\\\/|[^/])*)\/\s*)?\{\s*print\s*(.*?)\s*;?\s*\}\s*$/);
+  const parts = m ? (m[2]||'$0').match(/\$NF|\$\d+|"[^"]*"|,/g) : null;
+  if (!m || !parts) return {error:`awk: this sim understands  awk '{print $1}'  awk '{print $1, $3}'  awk '/text/ {print $2}'  and -F to set the separator.`};
+  let re=null; if (m[1]!=null){ try { re=new RegExp(m[1]); } catch(_){ return {error:`awk: syntax error in regular expression ${m[1]}`}; } }
+  const split = l => (sep==null||sep===' ') ? l.trim().split(/\s+/) : l.split(sep.length===1 ? sep : new RegExp(sep));
+  return {lines: lines.filter(l=>!re||re.test(l)).map(l=>{ const f=split(l); let s='';
+    for (const p of parts){ if (p===',') s+=' '; else if (p==='$NF') s+=f[f.length-1]??''; else if (p.startsWith('$')){ const x=+p.slice(1); s += x===0 ? l : (f[x-1]??''); } else s+=p.slice(1,-1); }
+    return s; }), awk:true};
+}
+function cutF(lines, args){
+  let d='\t', f=null;
+  for (let k=0;k<args.length;k++){ const a=args[k];
+    if (a==='-d'){ d=args[++k]; } else if (a.startsWith('-d')) d=a.slice(2);
+    else if (a==='-f'){ f=args[++k]; } else if (a.startsWith('-f')) f=a.slice(2);
+    else if (a.startsWith('-c')) return {error:"cut: -c isn't simulated here; use -d and -f"};
+    else return {error:`cut: invalid option -- '${a.replace(/^-+/,'')}'`}; }
+  if (f==null) return {error:'cut: you must specify a list of bytes, characters, or fields'};
+  if (d==null || d.length!==1) return {error:'cut: the delimiter must be a single character'};
+  const want = x => f.split(',').some(r=>{ const mm=r.match(/^(\d*)(-?)(\d*)$/); if (!mm) return false; const a=mm[1]?+mm[1]:1, b=mm[2]?(mm[3]?+mm[3]:Infinity):a; return x>=a&&x<=b; });
+  if (!/^[\d,-]+$/.test(f)) return {error:`cut: invalid field value '${f}'`};
+  return {lines: lines.map(l=> l.includes(d) ? l.split(d).filter((_,i)=>want(i+1)).join(d) : l)};
+}
+function applyFilter(lines, tk){
+  const cmd=tk[0], args=tk.slice(1);
+  if (['grep','egrep','fgrep'].includes(cmd)) return grepF(lines, cmd, args);
+  if (cmd==='awk') return awkF(lines, args);
+  if (cmd==='cut') return cutF(lines, args);
+  if (cmd==='sort'){
+    let u=false, r=false, n=false, key=0;
+    for (let k=0;k<args.length;k++){ const a=args[k]; let mm;
+      if (a==='--unique') u=true; else if (a==='--reverse') r=true; else if (a==='--numeric-sort') n=true;
+      else if ((mm=a.match(/^-([urn]*)k(\d*)(?:,\d+)?([nr]*)$/))){ for (const ch of mm[1]+mm[3]){ if(ch==='u')u=true; if(ch==='r')r=true; if(ch==='n')n=true; } key = mm[2] ? +mm[2] : +(String(args[++k]||'0').split(',')[0]); }
+      else if (/^-[urn]+$/.test(a)){ if (a.includes('u')) u=true; if (a.includes('r')) r=true; if (a.includes('n')) n=true; }
+      else return {error:`sort: invalid option -- '${a.replace(/^-+/,'')}'`}; }
+    const kf = l => key ? (l.trim().split(/\s+/)[key-1]||'') : l;
+    let L=[...lines].sort((a,b)=>{ const x=kf(a), y=kf(b); return n ? (parseFloat(x)||0)-(parseFloat(y)||0) : (x<y?-1:x>y?1:0); });
+    if (u) L=L.filter((x,k)=>k===0||kf(x)!==kf(L[k-1]));
+    if (r) L.reverse();
+    return {lines:L};
+  }
+  if (cmd==='uniq'){
+    let c=false; for (const a of args){ if (a==='-c'||a==='--count') c=true; else return {error:`uniq: invalid option -- '${a.replace(/^-+/,'')}'`}; }
+    const g=[]; for (const l of lines){ if (g.length && g[g.length-1].l===l) g[g.length-1].n++; else g.push({l,n:1}); }
+    return {lines:g.map(x=> c ? `${String(x.n).padStart(7)} ${x.l}` : x.l), uniqc:c};
+  }
+  if (cmd==='head'||cmd==='tail'){
+    let n=10;
+    for (let k=0;k<args.length;k++){ const a=args[k]; let m;
+      if (a==='-n'||a==='--lines'){ n=parseInt(args[++k],10); }
+      else if ((m=a.match(/^-n?(\d+)$/))||(m=a.match(/^--lines=(\d+)$/))) n=+m[1];
+      else return {error:`${cmd}: invalid option -- '${a.replace(/^-+/,'')}'`}; }
+    if (isNaN(n)) return {error:`${cmd}: invalid number of lines`};
+    return {lines: cmd==='head' ? lines.slice(0,n) : lines.slice(Math.max(0,lines.length-n))};
+  }
+  if (cmd==='wc'){
+    const L = lines.length===1 && lines[0]==='' ? [] : lines;
+    if (args.includes('-l')) return {lines:[String(L.length)], count:true};
+    const words = L.join(' ').split(/\s+/).filter(Boolean).length, chars = L.reduce((s,l)=>s+l.length+1,0);
+    return {lines:[`${String(L.length).padStart(7)} ${String(words).padStart(7)} ${String(chars).padStart(7)}`]};
+  }
+  if (cmd==='less'||cmd==='more'||cmd==='cat') return {lines};
+  if (cmd==='jq'||cmd==='yq') return {error:`bash: ${cmd}: command not found  (this sim has grep, awk, cut, sort, uniq, head, tail, wc)`};
+  return {error:`bash: ${cmd}: command not found`};
+}
+function pipeline(cmdStr){
+  const segs = splitPipes(cmdStr);
+  if (segs.some(x=>!x.trim())) return {lines:[], other:[{text:"bash: syntax error near unexpected token `|'",cls:'err'}], q:[], greps:[]};
+  const res = capture(()=>dispatchTop(tokenize(segs[0])));
+  let lines = res.stdout==='' ? [] : res.stdout.split('\n');
+  const other = res.other, greps=[], tags=new Set();
+  for (const seg of segs.slice(1)){
+    const tk = tokenize(seg), r = applyFilter(lines, tk);
+    if (r.error){ other.push({text:r.error, cls:'err'}); lines=[]; break; }
+    lines = r.lines;
+    if (r.grep){ greps.push(r.grep.pat); tags.add('grep'); if (r.grep.v) tags.add('grepv'); if (r.grep.c) tags.add('grepc'); if (r.grep.ctx) tags.add('grepctx'); }
+    if (r.count) tags.add('grepc');
+    if (r.uniqc) tags.add('uniqc');
+  }
+  /* Missions judge what the player actually ended up looking at, not the unfiltered output. */
+  for (const e of res.q){ e.piped = segs.length>1; e.greps = greps; e.counted = tags.has('grepc'); if ('out' in e || e.piped){ if (e.total==null) e.total = e.out ? e.out.length : lines.length; e.out = lines; } }
+  return {lines, other, q:res.q, greps, tags, piped:segs.length>1};
+}
+function runPiped(cmdStr){
+  const first = tokenize(splitPipes(cmdStr)[0]);
+  if (first[0]==='watch'){ tip(`To watch a piped command, put the whole command in quotes:\n  watch -n 1 "${splitPipes(cmdStr).join('|').replace(/^\s*watch\s+(-n\s*\S+\s+)?/,'').trim()}"`); return; }
+  const r = pipeline(cmdStr);
+  if (r.lines.length) raw(r.lines.join('\n'));
+  else if (r.greps.length && !r.other.length) dim('(grep found no matching lines)');
+  r.other.forEach(b=>blk(b.text, b.cls));
+  r.tags.forEach(learn);
+  r.q.forEach(emit);
+}
+function watchDate(ms){ const d=G(ms); return `${DAYS[d.getDay()]} ${MONS[d.getMonth()]} ${String(d.getDate()).padStart(2)} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())} ${d.getFullYear()}`; }
+function startWatch(args){
+  let iv=2, k=0;
+  while (k<args.length && args[k].startsWith('-')){
+    const a=args[k]; let m;
+    if (a==='-n'||a==='--interval'){ iv=parseFloat(args[k+1]); k+=2; continue; }
+    if ((m=a.match(/^(?:-n|--interval=)(\d+(?:\.\d+)?)$/))){ iv=+m[1]; k++; continue; }
+    if (['-d','-t','--differences','--no-title','-c','--color'].includes(a)){ k++; continue; }
+    err(`watch: invalid option -- '${a.replace(/^-+/,'')}'`); return;
+  }
+  if (isNaN(iv)){ err('watch: failed to parse argument'); return; }
+  const rest = args.slice(k);
+  if (!rest.length){ err('Usage:\n watch [options] command'); return; }
+  const cmd = rest.length===1 ? rest[0] : rest.map(t=>/[\s()]/.test(t)?`'${t}'`:t).join(' ');
+  if (!/^\s*(kubectl|k)\b/.test(cmd)){ tip('In this sim, watch works with kubectl commands, e.g. watch -n 1 kubectl get pods -n personality'); return; }
+  iv = Math.min(60, Math.max(0.5, iv));
+  learn('watch'); S.watches++;
+  const el = blk('', 'raw watch');
+  WATCH = {cmd, iv, el, q:null, tags:null};
+  const tick = () => {
+    const r = pipeline(cmd);
+    if (!WATCH.q){ WATCH.q = r.q; WATCH.tags = r.tags; }
+    else if (r.q.length) WATCH.q = r.q;
+    const extra = r.other.filter(b=>b.cls==='err').map(b=>b.text);
+    el.textContent = `Every ${iv.toFixed(1)}s: ${cmd}    termlink: ${watchDate(now())}\n\n${[...r.lines, ...extra].join('\n')}`;
+    out.scrollTop = out.scrollHeight;
+  };
+  tick();
+  WATCH.timer = setInterval(tick, iv*1000);
+  inp.placeholder = 'watching… press Ctrl+C or Enter to stop';
+  $('#inrow').classList.add('watching');
+}
+function stopWatch(){
+  if (!WATCH) return;
+  clearInterval(WATCH.timer);
+  const q = WATCH.q || [], tags = WATCH.tags; WATCH = null;
+  inp.placeholder = ''; $('#inrow').classList.remove('watching');
+  dim('^C  (watch stopped)');
+  if (tags) tags.forEach(learn);
+  q.forEach(emit); renderSide();
+}
+
+function run(line){
+  const cmd=line.trim();
+  echo(line);
+  if (!cmd) return;
+  S.history.push(cmd); S.hpos=S.history.length; S.cmds++;
+  if (splitPipes(cmd).length>1){ S.piped++; if (/^\s*(kubectl|k)\s/.test(cmd)) S.kube++; runPiped(cmd); renderSide(); return; }
+  const tk=tokenize(cmd); const head=tk[0]||'';
+  if (head==='kubectl'||head==='k'){ S.kube++; kubectl(tk.slice(1)); renderSide(); return; }
+  if (head==='watch'){ S.kube++; startWatch(tk.slice(1)); return; }
+  switch(head.toLowerCase()){
+    case 'help': case '?': gameHelp(); return;
+    case 'hint': hint(); return;
+    case 'answer': {
+      const text = tk.slice(1).join(' ');
+      if (S.done){ dim('The shift is over. Type restart to run it again.'); return; }
+      if (!CH[S.chapter].q){ dim(`There's no question to answer right now. (Current mission: ${CH[S.chapter].t})`); return; }
+      if (!text){ err('Usage: answer <your answer>'); return; }
+      emit({verb:'answer', text}); return; }
+    case 'codes': raw(`Reading pod status  (get pods → STATUS, describe pod → State / Last State / Events)
+  Running 1/1        the process is up and passing its readiness check.
+                     It does NOT mean the process is doing the right thing.
+  ContainerCreating  just scheduled; pulling the image or mounting volumes.
+  ImagePullBackOff   the image can't be pulled (wrong tag, no access). ErrImagePull
+                     is the same failure at the moment of the attempt.
+                     Restart Count 0 and no Started time: it has never run.
+  CrashLoopBackOff   starts, exits, restarts with a growing delay. logs --previous.
+  Completed (0)      a job that finished normally.
+  OOMKilled (137)    went over its memory limit and was killed.
+  Terminating        being shut down (30s grace by default).
+Events: kept ~1 hour. Older than that, check ReplicaSet AGE and the logs.`); return;
+    case 'mission': case 'objective': showMission(); if (S.done) dim('Shift over. Type results for your report card, or restart to run it again.'); return;
+    case 'notes': case 'log': case 'clues': case 'case': raw(S.clues.length? 'INCIDENT NOTES\n'+S.clues.map(c=>'  ◆ '+c).join('\n') : 'Nothing written down yet. Go find something worth writing down.'); return;
+    case 'status': case 'board': case 'fleet': fleetStatus(); return;
+    case 'results': case 'score': case 'scorecard': case 'card': case 'stats': showCard(); return;
+    case 'clear': case 'cls': out.innerHTML=''; showMission(); return;
+    case 'history': raw(S.history.map((h,i)=>`${String(i+1).padStart(4)}  ${h}`).join('\n')); return;
+    case 'restart': case 'reset': start(); return;
+    case 'handover': case 'submit': case 'file': case 'escalate': case 'transmit':
+      if (S.done){ dim('Already filed. Type results for your report card, or restart to run the shift again.'); return; }
+      if (S.chapter < CH.length-1){ tip(`You could file it now, and in real life, when in doubt, escalate early! But this handover is a lot more useful with the fleet back and the cause written down. (Current task: ${CH[S.chapter].t})`); return; }
+      emit({verb:'handover'}); return;
+    case 'whoami': raw('fleetops'); return;
+    case 'sudo': err('fleetops is not in the sudoers file. This incident will be reported.'); tip('...to RobCo Corporate Security. Mr. House reads every one of those personally. Allegedly.'); return;
+    case 'ls': case 'cd': case 'pwd': case 'cat': case 'vim': case 'nano': case 'tail': case 'less':
+      tip(`No shell on the Termlink tonight. Everything you need comes from kubectl, and you can pipe it through grep, awk, sort, uniq, cut, head, tail and wc.`); return;
+    case 'grep': case 'awk': case 'sort': case 'uniq': case 'wc': case 'cut': case 'head':
+      tip(`${head} needs something to read. Pipe a kubectl command into it:  kubectl logs deploy/dispatch-router -n dispatch | ${cmd}`); return;
+    case 'docker': tip('This cluster runs containerd. Stick with kubectl.'); return;
+    default:
+      err(`bash: ${head}: command not found`);
+      if (/^(get|describe|logs|scale|delete|rollout)$/.test(head)) tip(`Did you mean kubectl ${cmd}?`);
+      else dim('Type help for game commands. Cluster commands start with kubectl.');
+  }
+}
+/* ---------- completion ---------- */
+function nsFromParts(parts){ for (let i=0;i<parts.length;i++){ if ((parts[i]==='-n'||parts[i]==='--namespace')&&parts[i+1]) return parts[i+1]; if (parts[i].startsWith('--namespace=')) return parts[i].slice(12); } return null; }
+function namesOf(kind, ns, all){
+  const f = x => all || !ns || x.ns===ns;
+  if (kind==='pods') return S.pods.filter(f).map(p=>({n:p.name,ns:p.ns}));
+  if (kind==='deployments') return S.deps.filter(d=>f(d)&&!d.sts).map(d=>({n:d.name,ns:d.ns}));
+  if (kind==='statefulsets') return S.deps.filter(d=>f(d)&&d.sts).map(d=>({n:d.name,ns:d.ns}));
+  if (kind==='replicasets'){ const r=[]; S.deps.filter(d=>f(d)&&!d.sts).forEach(d=>rsList(d).forEach(x=>r.push({n:x.name,ns:d.ns}))); return r; }
+  if (kind==='configmaps') return S.cms.filter(f).map(c=>({n:c.name,ns:c.ns}));
+  if (kind==='namespaces') return S.namespaces.map(n=>({n:n.name}));
+  if (kind==='nodes') return NODES.map(n=>({n:n[0]}));
+  if (kind==='services'){ const r=[]; for (const k of Object.keys(SVCS)) if (all||!ns||k===ns) SVCS[k].forEach(s=>r.push({n:s[0],ns:k})); return r; }
+  return [];
+}
+function complete(){
+  if (inp.value.includes('|')) return;
+  const wm = inp.value.match(/^watch\s+(?:(?:-n|--interval)[\s=]*[\d.]+\s+|-[dt]\s+)*/);
+  if (wm){ const pre=wm[0]; inp.value=inp.value.slice(pre.length); try { completeInner(); } finally { inp.value = pre + inp.value; } return; }
+  completeInner();
+}
+function completeInner(){
+  const val=inp.value, parts=val.split(' '), cur=parts[parts.length-1], before=parts.slice(0,-1).filter(Boolean);
+  let cands=null, kind=null, prefixT='';
+  const nsI=nsFromParts(before), all=before.includes('-A')||before.includes('--all-namespaces');
+  if (!before.length) cands=['kubectl',...GAME].map(n=>({n}));
+  else if (before[0]==='kubectl'||before[0]==='k'){
+    const rest=before.slice(1), last=rest[rest.length-1], pos=[];
+    for (let i=0;i<rest.length;i++){ const a=rest[i]; if (['-n','--namespace','-o','-c','-l','--tail','--replicas','--container','--output','--selector','--revision','--to-revision'].includes(a)){ i++; continue; } if (a.startsWith('-')) continue; pos.push(a); }
+    if (last==='-n'||last==='--namespace') cands=namesOf('namespaces');
+    else if (last==='-o'||last==='--output') cands=['wide','name','yaml'].map(n=>({n}));
+    else if (cur.startsWith('-')) cands=FLAGS.map(n=>({n}));
+    else if (cur.includes('/')){ const t=cur.split('/')[0]; kind=RT[t]; prefixT=t+'/'; }
+    else if (!pos.length) cands=VERBS.map(n=>({n}));
+    else {
+      const v=pos[0];
+      if (v==='config') cands = pos.length===1 ? ['set-context','get-contexts','current-context','view'].map(n=>({n})) : [];
+      else if (v==='rollout') { if (pos.length===1) cands=['history','undo','status','restart'].map(n=>({n})); else if (pos.length===2) cands=[{n:'deployment'}]; else kind='deployments'; }
+      else if (v==='logs'||v==='log') kind='pods';
+      else if (['get','describe','delete','scale','top'].includes(v)){
+        if (pos.length===1) cands=(v==='top'?['pods','nodes']:v==='scale'?['deployment']:['pods','deployments','replicasets','configmaps','statefulsets','namespaces','services','events','nodes','all']).map(n=>({n}));
+        else kind=RT[pos[1]]||null;
+      }
+    }
+  }
+  if (!cands && !kind) return;
+  const base = cur.slice(prefixT.length);
+  let m, fallback=false;
+  if (kind){
+    m = namesOf(kind, nsI||S.ns, all).filter(x=>x.n.startsWith(base));
+    if (!m.length && !nsI && !all){ m = namesOf(kind, null, true).filter(x=>x.n.startsWith(base)); fallback=true; }
+  } else m = cands.filter(x=>x.n.startsWith(cur));
+  const uniq=[...new Map(m.map(x=>[x.n+'|'+(x.ns||''),x])).values()];
+  if (!uniq.length) return;
+  const head = parts.slice(0,-1).join(' ') + (parts.length>1?' ':'');
+  if (uniq.length===1 || new Set(uniq.map(x=>x.n)).size===1){
+    const x=uniq[0];
+    let add = prefixT + x.n + ' ';
+    if (fallback && x.ns && !nsI) add += `-n ${x.ns} `;
+    inp.value = head + add;
+    return;
+  }
+  const names=[...new Set(uniq.map(x=>x.n))];
+  let cp=names[0]; for (const n of names) while (!n.startsWith(cp)) cp=cp.slice(0,-1);
+  if (cp.length > base.length){ inp.value = head + prefixT + cp; return; }
+  echo(val);
+  const multiNs = new Set(uniq.map(x=>x.ns)).size>1;
+  raw(uniq.map(x=>prefixT+x.n+(multiNs&&x.ns?`  (${x.ns})`:'')).join('\n'));
+  if (multiNs && !nsI) dim('Matches in more than one namespace. Put -n <namespace> before the name, then press Tab again.');
+}
+
+/* ---------- input ---------- */
+inp.addEventListener('keydown', e=>{
+  if (BLOCK){ if (e.ctrlKey&&(e.key==='c'||e.key==='C')){ e.preventDefault(); endBlock(); dim('^C'); } else if (!(e.ctrlKey||e.metaKey)) e.preventDefault(); return; }
+  if (WATCH){ if (e.key==='Enter'||e.key==='Escape'||(e.ctrlKey&&(e.key==='c'||e.key==='C'))){ e.preventDefault(); inp.value=''; stopWatch(); } else if (!(e.ctrlKey||e.metaKey)) e.preventDefault(); return; }
+  if (e.key==='Enter'){ const v=inp.value; inp.value=''; run(v); out.scrollTop=out.scrollHeight; }
+  else if (e.key==='Tab'){ e.preventDefault(); complete(); }
+  else if (e.key==='ArrowUp'){ e.preventDefault(); if (S.hpos>0){ S.hpos--; inp.value=S.history[S.hpos]; } }
+  else if (e.key==='ArrowDown'){ e.preventDefault(); if (S.hpos<S.history.length-1){ S.hpos++; inp.value=S.history[S.hpos]; } else { S.hpos=S.history.length; inp.value=''; } }
+  else if (e.ctrlKey && (e.key==='l'||e.key==='L')){ e.preventDefault(); out.innerHTML=''; showMission(); }
+  else if (e.ctrlKey && (e.key==='c'||e.key==='C') && !window.getSelection().toString()){ e.preventDefault(); echo(inp.value+'^C'); inp.value=''; }
+});
+
+/* Touch devices have no Tab or arrow keys. These three buttons stand in for them.
+   pointerdown + preventDefault keeps the on-screen keyboard open. */
+const keyRow = document.getElementById('keys');
+if (keyRow) keyRow.addEventListener('pointerdown', e => {
+  const b = e.target.closest && e.target.closest('button');
+  if (!b) return;
+  e.preventDefault();
+  if (WATCH){ stopWatch(); inp.focus(); return; }
+  const k = b.dataset.k;
+  if (k === 'tab') complete();
+  else if (k === 'up'){ if (S.hpos > 0){ S.hpos--; inp.value = S.history[S.hpos]; } }
+  else if (S.hpos < S.history.length - 1){ S.hpos++; inp.value = S.history[S.hpos]; }
+  else { S.hpos = S.history.length; inp.value = ''; }
+  inp.focus();
+});
+
+/* Clicking anywhere in the terminal focuses the prompt, except on the report card's own controls. */
+$('#term').addEventListener('click', e=>{ if (e.target.closest('.rc input, .rc button')) return; if (!window.getSelection().toString()) inp.focus(); });
+$('#hintBtn').addEventListener('click', ()=>{ stopWatch(); echo('hint'); hint(); inp.focus(); });
+
+function start(){
+  stopWatch(); endBlock();
+  out.innerHTML='';
+  newState(); renderManual(); renderSide(); gauges(); briefing(); inp.focus();
+}
+start();
+
+/* ---------- home ---------- */
+(()=>{
+  const home = document.getElementById('home');
+  if (!home) return;
+  home.addEventListener('click', e => {
+    if (!S || S.done || S.cmds < 3) return;
+    if (!confirm('Leave this case? Your progress is not saved.')) e.preventDefault();
+  });
+})();
+
+/* ---------- theme picker ---------- */
+(()=>{
+  const sel = document.getElementById('theme');
+  if (!sel) return;
+  let saved = null;
+  try { saved = localStorage.getItem('ktg-theme'); } catch(e){}
+  const ok = ['dark','light','monokai','dracula','nord'];
+  const cur = ok.indexOf(saved)>=0 ? saved : 'dark';
+  document.documentElement.setAttribute('data-theme', cur);
+  sel.value = cur;
+  sel.addEventListener('change', () => {
+    document.documentElement.setAttribute('data-theme', sel.value);
+    try { localStorage.setItem('ktg-theme', sel.value); } catch(e){}
+  });
+})();
+})();
+</script>
+</body>
+</html>

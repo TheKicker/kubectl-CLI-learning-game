@@ -120,13 +120,44 @@ ul{list-style:none;margin:0;padding:0}
 #keys button{flex:1;padding:10px 0;font-size:12px}
 /* On-screen keyboards have no Tab and no arrows, so put the three the game needs on screen. */
 @media (hover:none) and (pointer:coarse){ #keys{display:flex} }
+/* ---------- report card (end of shift) ---------- */
+#out > .rc{margin:16px 0 8px}
+.rc{position:relative;z-index:1;max-width:780px;white-space:normal;font-size:13px;line-height:1.4;background:var(--panel2);border:1px solid var(--line);border-top:3px solid var(--brand);border-radius:6px;padding:14px 16px;cursor:default}
+.rc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.rc-kick{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim)}
+.rc-case{font-size:17px;font-weight:700;color:var(--brand);margin-top:3px;text-shadow:0 0 12px var(--glow)}
+.rc-case span{font-size:12px;font-weight:400;color:var(--dim);text-shadow:none}
+.rc-stamp{border:2px solid var(--brand);color:var(--brand);border-radius:4px;padding:5px 10px;font-weight:700;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;transform:rotate(-2.5deg);white-space:nowrap;margin:4px 4px 0 0}
+.rc-stamp.wip{border-style:dashed;color:var(--dim);border-color:var(--dim);transform:none}
+.rc-who{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;margin:12px 0 2px;color:var(--dim);font-size:12px}
+.rc-who label{display:flex;align-items:center;gap:8px}
+.rc-who input{font:inherit;font-size:14px;color:var(--fg);background:transparent;border:0;border-bottom:1px dashed var(--line);padding:2px;width:230px;max-width:60vw}
+.rc-who input:focus{outline:0;border-bottom-color:var(--brand)}
+.rc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;margin:12px 0}
+.rc-stats div{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.rc-stats b{display:block;font-size:22px;color:var(--fg);font-weight:700;line-height:1.15}
+.rc-stats b small{font-size:13px;color:var(--dim);font-weight:400}
+.rc-stats span{font-size:11px;color:var(--dim)}
+.rc-sub{font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:2px 0 6px}
+.rc-strip{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 7px}
+.rc-strip i,.rc-legend i{display:inline-block;width:18px;height:18px;border-radius:3px;border:1.5px solid var(--brand);position:relative}
+.rc-strip i.c0,.rc-legend i.c0{background:var(--brand)}
+.rc-strip i.c1,.rc-legend i.c1{background:linear-gradient(135deg,var(--brand) 50%,transparent 50%)}
+.rc-strip i.c2,.rc-legend i.c2{border-color:var(--dim)}
+.rc-strip i.c3{border-style:dashed;border-color:var(--line)}
+.rc-strip i.miss::after,.rc-legend i.miss::after{content:"";position:absolute;right:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.rc-legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:11px;color:var(--dim)}
+.rc-legend span{display:inline-flex;align-items:center;gap:6px}
+.rc-legend i{width:11px;height:11px}
+.rc-foot{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--dim)}
+.rc-foot .new{color:var(--green)}
 @media (max-width:900px){
   main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
   aside{border-left:0;border-top:1px solid var(--line);max-height:34vh}
   #term{padding:10px 12px}
   html,body{font-size:13px}
   /* iOS zooms the whole page when you focus an input under 16px. */
-  #cmd{font-size:16px}
+  #cmd,.rc-who input{font-size:16px}
 }
 @media (max-width:640px){
   header{gap:10px 12px;padding:8px 12px}
@@ -305,7 +336,7 @@ let S, T0;
 function newState(){
   T0 = now();
   const st = {
-    ns:'default', chapter:0, hintIdx:0, hints:0, cmds:0, wrong:0,
+    ns:'default', chapter:0, hintIdx:0, hints:0, hintMax:{}, miss:{}, cmds:0, kube:0, piped:0, watches:0, startAt:now(), wrong:0,
     flags:{}, clues:[], learned:new Set(), events:[], history:[], hpos:0, done:false,
     namespaces:[['default',318*DAY],['kube-system',318*DAY],['monitoring',90*DAY],['life-support',318*DAY],['station-ops',318*DAY],['comms',318*DAY],['science-lab',26*DAY]].map(([name,a])=>({name,created:now()-a})),
     deps:[], pods:[],
@@ -670,8 +701,11 @@ function emit(e){
     c.done(); S.chapter++; S.hintIdx=0;
     if (S.chapter < CH.length) showMission(); else S.done = true;
     renderSide();
-  } else if (c.nudge){
-    const n = c.nudge(e); if (n) tip(n);
+  } else {
+    const n = c.nudge ? c.nudge(e) : null;
+    /* A wrong answer counts against the report card; "check the evidence first" and format help don't. */
+    if (e.verb==='answer' && c.q && !/^(Check the evidence|Answer with)/.test(n||'')) S.miss[S.chapter] = (S.miss[S.chapter]||0) + 1;
+    if (n) tip(n);
   }
 }
 function renderSide(){
@@ -679,7 +713,7 @@ function renderSide(){
   const n = Math.min(S.chapter, CH.length);
   $('#hM').textContent = S.done ? 'shift over' : `${S.chapter+1}/${CH.length}`;
   $('#mBar').style.width = (n/CH.length*100)+'%';
-  if (S.done){ $('#mTitle').textContent='Shift over'; $('#mGoal').textContent='Type restart to run it again.'; }
+  if (S.done){ $('#mTitle').textContent='Shift over'; $('#mGoal').textContent='Type results to see your report card again, or restart to run it again.'; }
   else { const c=CH[S.chapter]; $('#mTitle').textContent=`${S.chapter+1}. ${c.t}`; $('#mGoal').textContent=c.g; }
   const ul=$('#clues'); ul.innerHTML='';
   if (!S.clues.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='No evidence yet.'; ul.appendChild(li); }
@@ -689,6 +723,7 @@ function hint(){
   if (S.done){ dim('The shift is over. Type restart to run it again.'); return; }
   const c = CH[S.chapter], i = Math.min(S.hintIdx, c.h.length-1);
   S.hints++; S.hintIdx++;
+  S.hintMax[S.chapter] = Math.max(S.hintMax[S.chapter]||0, i+1);
   const hv = typeof c.h[i]==='function' ? c.h[i]() : c.h[i];
   tip(`Hint ${i+1}/${c.h.length}: ${hv}`);
 }
@@ -741,6 +776,7 @@ which is why nothing here will fix itself. Free some power, and do it by hand.`)
   clue(`power-governor entered profile=conserve at ${clock(S.shedAt)} (solar 11% < 35% minimum).`);
 }
 function finale(){
+  S.done = true; S.endAt = now();
   const co = co2();
   blk(`TRANSMIT → MISSION CONTROL (EARTH)   packet HL-318-07   priority: high
 
@@ -766,10 +802,7 @@ function finale(){
                lunar night, review what else inherited that label, raise the
                hydroponics memory limit, and tell the science team their
                experiment window needs 36 kW they do not currently have.`,'mission');
-  narr(`SHIFT OVER. The crew wakes up to air.
-
-Commands run: ${S.cmds} · Hints used: ${S.hints} · Station log entries: ${S.clues.length}
-Field manual: ${S.learned.size}/${MANUAL.length} commands used.`);
+  narr(`SHIFT OVER. The crew wakes up to air.`);
   blk(`Your cheat sheet:
   kubectl get ns                                     list namespaces
   kubectl get pods -n <ns>          (-A for all)     list pods
@@ -789,8 +822,96 @@ Field manual: ${S.learned.size}/${MANUAL.length} commands used.`);
   Why it stopped:  0 Completed · 1 Error · 137 OOMKilled · Killing/ScalingReplicaSet = on purpose
   Who stopped it:  the SOURCE column. A controller leaves its name; a person leaves none.
   kubectl config set-context --current --namespace=<ns>`,'raw');
-  dim(`Type restart to play again. (The pod names change every game.)`);
-  S.done = true; renderSide();
+  showCard();
+  dim(`Type results to see this card again, or restart to play again. (The pod names change every game.)`);
+  renderSide();
+}
+
+/* ---------- report card ---------- */
+/* The same card closes every case: one screenshot of it is a record of the run. */
+const CARD = {key:'moon', name:'Moon Base: Dark Side', level:'intermediate',
+  kicker:'Helios Station · Night watch log', person:'Crew',
+  ranks:['Station Commander','Flight Engineer','Mission Specialist','Crew Member'],
+  extra:null};
+function store(k, v){
+  try { if (v===undefined){ const s=localStorage.getItem(k); return s ? JSON.parse(s) : null; } localStorage.setItem(k, JSON.stringify(v)); } catch(e){}
+  return null;
+}
+function fmtDur(ms){ const s=Math.max(0,Math.round(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60); return h ? `${h}h ${p2(m)}m` : `${m}m ${p2(s%60)}s`; }
+function runStats(){
+  const possible = CH.reduce((s,c)=>s+c.h.length,0);
+  const used = CH.reduce((s,c,i)=>s+Math.min(S.hintMax[i]||0,c.h.length),0);
+  const qs = CH.map((c,i)=>c.q?i:-1).filter(i=>i>=0);
+  const first = qs.filter(i=>!S.miss[i] && (S.done || i<S.chapter)).length;
+  const f = possible ? used/possible : 0;
+  const rank = (used===0 && first===qs.length && (!CARD.clean || CARD.clean())) ? 0 : f<=0.10 ? 1 : f<=0.35 ? 2 : 3;
+  return {possible, used, qs:qs.length, first, rank, ms:(S.endAt||now())-S.startAt, missions:S.done?CH.length:S.chapter};
+}
+function showCard(){
+  const st = runStats();
+  if (S.done && !S.bestChecked){
+    S.bestChecked = true;
+    const prev = store('ktg-best-'+CARD.key);
+    S.prevBest = prev;
+    S.newBest = !prev || st.used < prev.used || (st.used===prev.used && S.cmds < prev.cmds);
+    if (S.newBest) store('ktg-best-'+CARD.key, {used:st.used, possible:st.possible, cmds:S.cmds, ms:st.ms, at:Date.now()});
+  }
+  const el = (tag, cls, text) => { const x=document.createElement(tag); if (cls) x.className=cls; if (text!=null) x.textContent=text; return x; };
+  const card = el('div','rc');
+  const top = el('div','rc-top'), head = el('div');
+  head.append(el('div','rc-kick',CARD.kicker));
+  const nm = el('div','rc-case',CARD.name+' '); nm.append(el('span',null,'· '+CARD.level)); head.append(nm);
+  top.append(head, el('div', S.done ? 'rc-stamp' : 'rc-stamp wip', S.done ? CARD.ranks[st.rank] : 'In progress'));
+  const who = el('div','rc-who'), lab = el('label',null,CARD.person), name = el('input');
+  name.className = 'rc-name'; name.placeholder = 'type your name'; name.maxLength = 40; name.setAttribute('aria-label','Your name, for the report card');
+  try { name.value = localStorage.getItem('ktg-name') || ''; } catch(e){}
+  name.addEventListener('input', () => { try { localStorage.setItem('ktg-name', name.value); } catch(e){} });
+  lab.append(name);
+  const when = new Date().toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  who.append(lab, el('span',null,(S.done?'Completed ':'Started ')+when+' · '+fmtDur(st.ms)));
+  const stats = el('div','rc-stats');
+  const stat = (big, small, label) => { const d=el('div'), b=el('b',null,String(big)); if (small!=null) b.append(el('small',null,'/'+small)); d.append(b, el('span',null,label)); stats.append(d); };
+  stat(st.missions, CH.length, 'missions');
+  stat(S.cmds, null, 'commands run');
+  stat(st.used, st.possible, 'hints used');
+  stat(st.first, st.qs, 'answered first try');
+  const known = MANUAL.filter(m=>S.learned.has(m[0])).length;
+  stat(known, MANUAL.length, 'field manual');
+  if (CARD.extra){ const x=CARD.extra(); if (x) stat(x[0], x[1], x[2]); }
+  const strip = el('div','rc-strip');
+  strip.setAttribute('role','img');
+  CH.forEach((c,i)=>{
+    const lv = S.hintMax[i]||0, reached = S.done || i<S.chapter;
+    const cls = !reached ? 'c3' : lv===0 ? 'c0' : lv>=c.h.length ? 'c2' : 'c1';
+    const cell = el('i', cls + (S.miss[i] ? ' miss' : ''));
+    cell.title = `${i+1}. ${c.t}: ` + (!reached ? 'not reached' : lv===0 ? 'no hints' : lv>=c.h.length ? 'answer shown' : `${lv} of ${c.h.length} hints`) + (S.miss[i] ? `, ${S.miss[i]} wrong answer${S.miss[i]>1?'s':''}` : '');
+    strip.append(cell);
+  });
+  strip.setAttribute('aria-label', `Missions: ${CH.map((c,i)=>(S.hintMax[i]||0)===0?'clean':'hinted').filter(x=>x==='clean').length} of ${CH.length} with no hints`);
+  const legend = el('div','rc-legend');
+  const lg = (cls, text) => { const s=el('span'); s.append(el('i',cls), document.createTextNode(text)); legend.append(s); };
+  lg('c0','no hints'); lg('c1','some hints'); lg('c2','answer shown'); lg('c0 miss','wrong answer first');
+  const foot = el('div','rc-foot');
+  const bits = [`${S.kube} kubectl`, `${S.piped} piped`]; if (S.watches) bits.push(`${S.watches} watch`); if (S.hints > st.used) bits.push(`${S.hints} hint requests`);
+  foot.append(el('span',null,bits.join(' · ')));
+  const best = S.prevBest;
+  if (S.done && S.newBest && best) foot.append(el('span','new',`New personal best (was ${best.used} hints, ${best.cmds} commands)`));
+  else if (S.done && S.newBest) foot.append(el('span','new','First completed run on this browser'));
+  else if (best) foot.append(el('span',null,`Personal best: ${best.used}/${best.possible} hints, ${best.cmds} commands, ${fmtDur(best.ms)}`));
+  const copy = el('button',null,'Copy summary');
+  copy.type = 'button';
+  copy.addEventListener('click', () => {
+    const txt = [`kubectl Training Ground: ${CARD.name} (${CARD.level})`,
+      `${CARD.person}: ${name.value.trim()||'(unnamed)'} · ${S.done?'completed':'in progress'} ${when} in ${fmtDur(st.ms)}`,
+      `Missions ${st.missions}/${CH.length} · Commands ${S.cmds} (${S.kube} kubectl, ${S.piped} piped) · Hints ${st.used}/${st.possible} · First-try answers ${st.first}/${st.qs} · Field manual ${known}/${MANUAL.length}` + (CARD.extra && CARD.extra() ? ` · ${CARD.extra()[2]} ${CARD.extra()[0]}` : ''),
+      S.done ? `Rating: ${CARD.ranks[st.rank]}` : ''].filter(Boolean).join('\n');
+    const done = () => { copy.textContent = 'Copied ✓'; setTimeout(()=>copy.textContent='Copy summary', 1600); };
+    const fallback = () => { const ta=el('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.append(ta); ta.select(); try { document.execCommand('copy'); done(); } catch(e){} ta.remove(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback); else fallback();
+  });
+  foot.append(copy);
+  card.append(top, who, stats, el('div','rc-sub','Mission by mission'), strip, legend, foot);
+  out.appendChild(card); out.scrollTop = out.scrollHeight;
 }
 
 /* ---------- parsing ---------- */
@@ -798,7 +919,7 @@ const RT = {statefulset:'statefulsets',statefulsets:'statefulsets',sts:'stateful
   namespace:'namespaces',namespaces:'namespaces',ns:'namespaces',service:'services',services:'services',svc:'services',event:'events',events:'events',ev:'events',
   node:'nodes',nodes:'nodes',no:'nodes',job:'jobs',jobs:'jobs',cronjob:'cronjobs',cronjobs:'cronjobs',cj:'cronjobs',replicaset:'replicasets',replicasets:'replicasets',rs:'replicasets',all:'all'};
 const VERBS = ['get','describe','logs','scale','delete','rollout','config','top','version','cluster-info','explain'];
-const GAME = ['watch','help','hint','mission','status','log','clues','codes','clear','answer','transmit','escalate','restart','history'];
+const GAME = ['watch','help','hint','mission','status','log','clues','codes','clear','answer','transmit','escalate','results','restart','history'];
 const FLAGS = ['-n','--namespace','-A','--all-namespaces','-o','--previous','--replicas=','--tail=','--current','-c'];
 function tokenize(s){ const r=[]; const re=/"([^"]*)"|'([^']*)'|(\S+)/g; let m; while((m=re.exec(s))) r.push(m[1]??m[2]??m[3]); return r; }
 function parseFlags(args){
@@ -1471,6 +1592,7 @@ function gameHelp(){
   answer <text>     answer a task question (e.g. answer 45m, answer intentional)
   codes             why pods stop: exit codes and events
   transmit          send your handover to Mission Control (once the uplink is back)
+  results           your report card: commands run, hints used, the lot
   history           commands you've typed
   clear             clear the screen (or Ctrl+L)
   restart           start a new shift
@@ -1602,7 +1724,7 @@ function startWatch(args){
   const cmd = rest.length===1 ? rest[0] : rest.map(t=>/[\s()]/.test(t)?`'${t}'`:t).join(' ');
   if (!/^\s*(kubectl|k)\b/.test(cmd)){ tip('In this sim, watch works with kubectl commands, e.g. watch -n 1 kubectl get pods -n life-support'); return; }
   iv = Math.min(60, Math.max(0.5, iv));
-  learn('watch');
+  learn('watch'); S.watches++;
   const el = blk('', 'raw watch');
   WATCH = {cmd, iv, el, q:null, grep:false};
   const tick = () => {
@@ -1632,10 +1754,10 @@ function run(line){
   echo(line);
   if (!cmd) return;
   S.history.push(cmd); S.hpos=S.history.length; S.cmds++;
-  if (splitPipes(cmd).length>1){ runPiped(cmd); renderSide(); return; }
+  if (splitPipes(cmd).length>1){ S.piped++; if (/^\s*(kubectl|k)\s/.test(cmd)) S.kube++; runPiped(cmd); renderSide(); return; }
   const tk=tokenize(cmd); const head=tk[0];
-  if (head==='kubectl'||head==='k'){ kubectl(tk.slice(1)); renderSide(); return; }
-  if (head==='watch'){ startWatch(tk.slice(1)); return; }
+  if (head==='kubectl'||head==='k'){ S.kube++; kubectl(tk.slice(1)); renderSide(); return; }
+  if (head==='watch'){ S.kube++; startWatch(tk.slice(1)); return; }
   switch(head.toLowerCase()){
     case 'help': case '?': gameHelp(); return;
     case 'hint': hint(); return;
@@ -1657,6 +1779,7 @@ function run(line){
     case 'mission': case 'objective': showMission(); if (S.done) dim('Shift over. Type restart to run it again.'); return;
     case 'log': case 'logbook': case 'clues': case 'case': raw(S.clues.length? 'STATION LOG\n'+S.clues.map(c=>'  ◆ '+c).join('\n') : 'Your station log is empty. Go find something worth writing down.'); return;
     case 'status': case 'board': stationStatus(); return;
+    case 'results': case 'score': case 'scorecard': case 'card': case 'stats': showCard(); return;
     case 'clear': case 'cls': out.innerHTML=''; showMission(); return;
     case 'history': raw(S.history.map((h,i)=>`${String(i+1).padStart(4)}  ${h}`).join('\n')); return;
     case 'restart': case 'reset': start(); return;
@@ -1771,7 +1894,8 @@ if (keyRow) keyRow.addEventListener('pointerdown', e => {
   inp.focus();
 });
 
-$('#term').addEventListener('click', ()=>{ if (!window.getSelection().toString()) inp.focus(); });
+/* Clicking anywhere in the terminal focuses the prompt, except on the report card's own controls. */
+$('#term').addEventListener('click', e=>{ if (e.target.closest('.rc input, .rc button')) return; if (!window.getSelection().toString()) inp.focus(); });
 $('#hintBtn').addEventListener('click', ()=>{ stopWatch(); echo('hint'); hint(); inp.focus(); });
 
 function start(){
