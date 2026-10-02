@@ -109,6 +109,22 @@ where the authentic theme colour needed a nudge to be readable at body size.
 
 Adding a sixth is one block of CSS variables in each file's `<style>`, plus one `<option>`.
 
+## Publishing and sharing
+
+The site is published on GitHub Pages at
+**https://thekicker.github.io/kubectl-CLI-learning-game/**. The address is case-sensitive.
+That address is written into a few places, so update them all if it ever moves:
+
+- `SITE` near the report card code in each case file: where share buttons and copied summaries link
+- the `<head>` of every page: canonical link, `og:url`, `og:image`, and the JSON-LD block
+- `sitemap.xml`
+
+Every page carries Open Graph and X card tags, so a shared link shows a picture card using
+`social-card.png` (1200×630). Each page also has a search-friendly title and description,
+plus schema.org `LearningResource` data that gives each case's level, time and skills. To get
+indexed sooner, submit `sitemap.xml` in Google Search Console. A project site on GitHub Pages
+can't have its own `robots.txt`, so the sitemap has to be submitted by hand.
+
 ## Handing it to someone
 
 Send them the file. That's it — it's self-contained, works offline, opens on a phone, and
@@ -139,7 +155,10 @@ Every case ends with a report card, drawn below the handover:
 There's a name field on the card, so a screenshot works as a record of who did the training and
 when. Type `results` to bring the card back after `clear`, or partway through a run to see an
 "in progress" version. **Copy summary** puts a plain-text version on the clipboard for
-chat. The name and each case's personal best are remembered in the browser. None of it
+chat. Once a case is finished, **Share on X / LinkedIn / Facebook** opens that network's own
+share window, pre-filled with the result, a link to the home page and
+`#Kubernetes #KubectlTrainingGround`. Nothing is posted until the player presses Post, and
+their name is never included. The name and each case's personal best are remembered in the browser. None of it
 leaves the page.
 
 ## Adding a case

@@ -3,14 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Night shift at a bank. The ledger service is crash-looping and someone is skimming fractions of a cent. Work out who, using real kubectl commands.">
 <meta name="theme-color" content="#0b0f14">
+<meta name="description" content="Beginner kubectl practice. A bank ledger is crash-looping and someone is skimming cents. Use get pods, describe, logs and events to find who.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://thekicker.github.io/kubectl-CLI-learning-game/kubectl-midnight-ledger.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="The Midnight Ledger - a kubectl mystery">
-<meta property="og:description" content="Night shift at a bank. The ledger service is crash-looping and someone is skimming fractions of a cent. Work out who, using real kubectl commands.">
-<meta name="twitter:card" content="summary">
+<meta property="og:site_name" content="kubectl Training Ground">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="The Midnight Ledger, a beginner kubectl mystery">
+<meta property="og:description" content="Beginner kubectl practice. A bank ledger is crash-looping and someone is skimming cents. Use get pods, describe, logs and events to find who.">
+<meta property="og:url" content="https://thekicker.github.io/kubectl-CLI-learning-game/kubectl-midnight-ledger.html">
+<meta property="og:image" content="https://thekicker.github.io/kubectl-CLI-learning-game/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="kubectl Training Ground: learn kubectl by fixing things, safely. Three cases from beginner to proficient.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Midnight Ledger, a beginner kubectl mystery">
+<meta name="twitter:description" content="Beginner kubectl practice. A bank ledger is crash-looping and someone is skimming cents. Use get pods, describe, logs and events to find who.">
+<meta name="twitter:image" content="https://thekicker.github.io/kubectl-CLI-learning-game/social-card.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "LearningResource",
+ "name": "The Midnight Ledger",
+ "url": "https://thekicker.github.io/kubectl-CLI-learning-game/kubectl-midnight-ledger.html",
+ "description": "Beginner kubectl practice. A bank ledger is crash-looping and someone is skimming cents. Use get pods, describe, logs and events to find who.",
+ "educationalLevel": "Beginner",
+ "timeRequired": "PT20M",
+ "learningResourceType": "Interactive simulation",
+ "interactivityType": "active",
+ "isAccessibleForFree": true,
+ "inLanguage": "en",
+ "teaches": [
+  "kubectl get pods",
+  "kubectl describe pod",
+  "kubectl logs --previous",
+  "kubectl get events",
+  "kubectl scale"
+ ],
+ "about": {
+  "@type": "Thing",
+  "name": "Kubernetes"
+ },
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "kubectl Training Ground",
+  "url": "https://thekicker.github.io/kubectl-CLI-learning-game/"
+ }
+}
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0f14'/%3E%3Cpath d='M7 10l5 6-5 6' stroke='%23e3b341' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='15' y='19' width='10' height='3' rx='1.5' fill='%23e3b341'/%3E%3C/svg%3E">
-<title>The Midnight Ledger — a kubectl mystery</title>
+<title>The Midnight Ledger, a beginner kubectl mystery | kubectl Training Ground</title>
 <style>
 :root{
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
@@ -148,6 +191,10 @@ ul{list-style:none;margin:0;padding:0}
 .rc-legend i{width:11px;height:11px}
 .rc-foot{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--dim)}
 .rc-foot .new{color:var(--green)}
+.rc-share{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:11.5px;color:var(--dim)}
+.rc-share .lbl{margin-right:2px}
+.rc-share a,.rc-share button{font:inherit;font-size:12px;color:var(--amber);text-decoration:none;background:transparent;border:1px solid var(--line);border-radius:4px;padding:5px 10px;cursor:pointer}
+.rc-share a:hover,.rc-share button:hover{background:var(--hover);border-color:var(--amber)}
 @media (max-width:900px){
   main{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
   aside{border-left:0;border-top:1px solid var(--line);max-height:34vh}
@@ -748,6 +795,8 @@ const CARD = {key:'ledger', name:'The Midnight Ledger', level:'beginner',
   kicker:'Granite Trust Bank · Night shift case file', person:'Detective',
   ranks:['Chief Inspector','Detective Sergeant','Detective','Rookie Detective'],
   extra:()=>[S.wrong, null, 'wrong accusations'], clean:()=>S.wrong===0};
+/* Where the training ground is published. Shares and the copied summary link here. */
+const SITE = 'https://thekicker.github.io/kubectl-CLI-learning-game/';
 function store(k, v){
   try { if (v===undefined){ const s=localStorage.getItem(k); return s ? JSON.parse(s) : null; } localStorage.setItem(k, JSON.stringify(v)); } catch(e){}
   return null;
@@ -819,13 +868,27 @@ function showCard(){
     const txt = [`kubectl Training Ground: ${CARD.name} (${CARD.level})`,
       `${CARD.person}: ${name.value.trim()||'(unnamed)'} · ${S.done?'completed':'in progress'} ${when} in ${fmtDur(st.ms)}`,
       `Missions ${st.missions}/${CH.length} · Commands ${S.cmds} (${S.kube} kubectl, ${S.piped} piped) · Hints ${st.used}/${st.possible} · First-try answers ${st.first}/${st.qs} · Field manual ${known}/${MANUAL.length}` + (CARD.extra && CARD.extra() ? ` · ${CARD.extra()[2]} ${CARD.extra()[0]}` : ''),
-      S.done ? `Rating: ${CARD.ranks[st.rank]}` : ''].filter(Boolean).join('\n');
+      S.done ? `Rating: ${CARD.ranks[st.rank]}` : '', SITE].filter(Boolean).join('\n');
     const done = () => { copy.textContent = 'Copied ✓'; setTimeout(()=>copy.textContent='Copy summary', 1600); };
     const fallback = () => { const ta=el('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.append(ta); ta.select(); try { document.execCommand('copy'); done(); } catch(e){} ta.remove(); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback); else fallback();
   });
-  foot.append(copy);
-  card.append(top, who, stats, el('div','rc-sub','Mission by mission'), strip, legend, foot);
+  /* Sharing opens each network's own share window, pre-filled; nothing is posted until the player
+     presses Post there. The player's name stays off the post. Links point at the home page. */
+  const share = el('div','rc-share');
+  if (S.done){
+    const enc = encodeURIComponent, tags = ['Kubernetes','KubectlTrainingGround'];
+    const msg = `I just finished ${CARD.name} (${CARD.level}) on kubectl Training Ground: ${st.missions}/${CH.length} missions using ${st.used} of ${st.possible} hints, rated "${CARD.ranks[st.rank]}". Learn kubectl by fixing a pretend cluster, right in your browser.`;
+    const nets = [
+      ['Share on X', `https://twitter.com/intent/tweet?text=${enc(msg)}&url=${enc(SITE)}&hashtags=${tags.join(',')}`],
+      ['LinkedIn', `https://www.linkedin.com/feed/?shareActive=true&text=${enc(msg+'\n\n'+SITE+'\n\n'+tags.map(t=>'#'+t).join(' '))}`],
+      ['Facebook', `https://www.facebook.com/sharer/sharer.php?u=${enc(SITE)}&hashtag=${enc('#KubectlTrainingGround')}`],
+    ];
+    share.append(el('span','lbl','Share your result:'));
+    for (const [label, href] of nets){ const a=el('a',null,label); a.href=href; a.target='_blank'; a.rel='noopener noreferrer'; share.append(a); }
+  }
+  share.append(copy);
+  card.append(top, who, stats, el('div','rc-sub','Mission by mission'), strip, legend, foot, share);
   out.appendChild(card); out.scrollTop = out.scrollHeight;
 }
 
@@ -1772,7 +1835,7 @@ if (keyRow) keyRow.addEventListener('pointerdown', e => {
 });
 
 /* Clicking anywhere in the terminal focuses the prompt, except on the report card's own controls. */
-$('#term').addEventListener('click', e=>{ if (e.target.closest('.rc input, .rc button')) return; if (!window.getSelection().toString()) inp.focus(); });
+$('#term').addEventListener('click', e=>{ if (e.target.closest('.rc input, .rc button, .rc a')) return; if (!window.getSelection().toString()) inp.focus(); });
 $('#hintBtn').addEventListener('click', ()=>{ stopWatch(); echo('hint'); hint(); inp.focus(); });
 
 function start(){
